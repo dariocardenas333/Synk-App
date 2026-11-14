@@ -1,0 +1,8 @@
+{
+  "name": "Synk — Repartidores Independientes",
+  "description": "Directorio móvil de repartidores independientes, clientes y comercios en Trelew, Rawson, Puerto Madryn y Comodoro Rivadavia.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -26,9 +26,11 @@ export const Header: React.FC<HeaderProps> = ({
           onClick={onGoHome}
           className="flex min-w-0 items-center gap-2 text-left transition active:opacity-80"
         >
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#063642] font-display text-base font-extrabold text-white">
-            A
-          </span>
+          <img
+            src="/logo-alamano-icon.png"
+            alt="AlaMano"
+            className="h-9 w-10 shrink-0 object-contain mix-blend-multiply"
+          />
           <div className="min-w-0 leading-none">
             <span className="block font-display text-base font-extrabold tracking-tight text-[#063642] whitespace-nowrap">
               AlaMano

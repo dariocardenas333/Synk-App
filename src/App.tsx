@@ -208,13 +208,12 @@ export default function App() {
 
         {!snap.ready ? (
           <div className="flex min-h-dvh flex-col items-center justify-center gap-3 bg-[#F8FAFA] p-6">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#063642] font-display text-2xl font-extrabold text-white shadow-sm">
-              A
-            </div>
-            <p className="font-display text-lg font-extrabold text-[#063642]">AlaMano</p>
-            <p className="text-xs font-medium text-[#008B8B]">
-              Servicios independientes, más cerca.
-            </p>
+            <img
+              src="/logo-alamano.png"
+              alt="AlaMano — Servicios independientes, más cerca."
+              className="h-32 w-32 object-contain mix-blend-multiply"
+            />
+            <p className="text-xs font-medium text-[#008B8B]">Cargando...</p>
           </div>
         ) : showWelcomeScreen ? (
           <WelcomeView

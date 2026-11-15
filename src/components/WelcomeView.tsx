@@ -26,25 +26,19 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
     <div className="flex min-h-dvh flex-col justify-between bg-[#F8FAFA] px-6 pb-8 pt-10">
       {/* Top Brand Identity */}
       <div>
-        <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#063642] font-display text-2xl font-extrabold text-white shadow-sm">
-            A
-          </div>
-          <div>
-            <h1 className="font-display text-2xl font-extrabold tracking-tight text-[#063642] leading-none">
-              AlaMano
-            </h1>
-            <p className="mt-1 text-xs font-bold text-[#008B8B]">
-              Servicios independientes, más cerca.
-            </p>
-          </div>
+        <div className="flex justify-center pt-1">
+          <img
+            src="/logo-alamano.png"
+            alt="AlaMano — Servicios independientes, más cerca."
+            className="h-36 w-36 object-contain mix-blend-multiply"
+          />
         </div>
 
         {/* Hero Copy */}
-        <div className="mt-10">
-          <h2 className="font-display text-[28px] font-extrabold leading-[1.15] tracking-tight text-[#063642] text-balance">
+        <div className="mt-6">
+          <h1 className="font-display text-[28px] font-extrabold leading-[1.15] tracking-tight text-[#063642] text-balance">
             Todo lo que necesitás resolver hoy, en tu ciudad.
-          </h2>
+          </h1>
           <p className="mt-4 text-base leading-relaxed text-slate-600">
             Conectá directo con prestadores independientes en Trelew y Chubut, sin intermediarios
             ni comisiones.

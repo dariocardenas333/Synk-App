@@ -120,7 +120,7 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
               placeholder="Ej: @lucas o Lucía (si lo dejás vacío se genera uno)"
-              className="mt-1.5 h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3.5 text-sm text-[#063642] outline-none placeholder:text-slate-400 focus:border-[#008B8B] focus:bg-white dark:border-[#1E4452] dark:bg-[#13323D] dark:text-white dark:placeholder:text-slate-500 dark:focus:border-[#2DD4BF]"
+              className="mt-1.5 h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3.5 text-sm text-[#063642] outline-none placeholder:text-slate-400 focus:border-[#008B8B] focus:bg-white dark:border-[#1E4452] dark:bg-[#13323D] dark:text-white dark:placeholder:text-slate-500 dark:focus:border-[#2DD4BF] dark:focus:bg-[#13323D]"
             />
 
             <button

@@ -378,7 +378,7 @@ export const ChatRoomView: React.FC<ChatRoomViewProps> = ({
               value={proposalDesc}
               onChange={(e) => setProposalDesc(e.target.value)}
               placeholder="Ej: Retirar sobre en Av. Fontana 240 y entregar en Barrio Pueblo de Luis."
-              className="mt-1 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] p-2.5 text-xs text-[#063642] outline-none focus:border-[#008B8B] focus:bg-white dark:border-[#1E4452] dark:bg-[#13323D] dark:text-slate-100"
+              className="mt-1 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] p-2.5 text-xs text-[#063642] outline-none placeholder:text-slate-400 focus:border-[#008B8B] focus:bg-white dark:border-[#1E4452] dark:bg-[#13323D] dark:text-white dark:placeholder:text-slate-400 dark:focus:border-[#2DD4BF] dark:focus:bg-[#13323D]"
             />
           </div>
           <div className="grid grid-cols-2 gap-2.5">
@@ -393,7 +393,7 @@ export const ChatRoomView: React.FC<ChatRoomViewProps> = ({
                 value={proposalPrice}
                 onChange={(e) => setProposalPrice(e.target.value)}
                 placeholder="Opcional"
-                className="mt-1 h-10 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3 text-xs text-[#063642] outline-none focus:border-[#008B8B] focus:bg-white tabular-nums dark:border-[#1E4452] dark:bg-[#13323D] dark:text-slate-100"
+                className="mt-1 h-10 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3 text-xs text-[#063642] outline-none placeholder:text-slate-400 focus:border-[#008B8B] focus:bg-white tabular-nums dark:border-[#1E4452] dark:bg-[#13323D] dark:text-white dark:placeholder:text-slate-400 dark:focus:border-[#2DD4BF] dark:focus:bg-[#13323D]"
               />
             </div>
             <div>
@@ -508,7 +508,7 @@ export const ChatRoomView: React.FC<ChatRoomViewProps> = ({
               value={ratingComment}
               onChange={(e) => setRatingComment(e.target.value)}
               placeholder="Contá cómo fue la puntualidad y atención (opcional)"
-              className="mt-3 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] p-2.5 text-xs text-[#063642] outline-none focus:border-[#008B8B] focus:bg-white dark:border-[#1E4452] dark:bg-[#13323D] dark:text-slate-100"
+              className="mt-3 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] p-2.5 text-xs text-[#063642] outline-none placeholder:text-slate-400 focus:border-[#008B8B] focus:bg-white dark:border-[#1E4452] dark:bg-[#13323D] dark:text-white dark:placeholder:text-slate-400 dark:focus:border-[#2DD4BF] dark:focus:bg-[#13323D]"
             />
 
             <button
@@ -551,7 +551,7 @@ export const ChatRoomView: React.FC<ChatRoomViewProps> = ({
             onTypingChange(false);
           }}
           placeholder="Escribí tu mensaje..."
-          className="h-11 flex-1 rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3.5 text-sm text-[#063642] outline-none placeholder:text-slate-400 focus:border-[#008B8B] focus:bg-white dark:border-[#1E4452] dark:bg-[#13323D] dark:text-slate-100 dark:focus:border-[#2DD4BF]"
+          className="h-11 flex-1 rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3.5 text-sm text-[#063642] outline-none placeholder:text-slate-400 focus:border-[#008B8B] focus:bg-white dark:border-[#1E4452] dark:bg-[#13323D] dark:text-white dark:placeholder:text-slate-400 dark:focus:border-[#2DD4BF] dark:focus:bg-[#13323D]"
         />
         <button
           type="submit"

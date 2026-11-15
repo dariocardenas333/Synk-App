@@ -214,7 +214,7 @@ export const GuestProfileView: React.FC<GuestProfileViewProps> = ({
                 maxLength={24}
                 value={nickname}
                 onChange={(e) => setNickname(e.target.value)}
-                className="h-11 flex-1 rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3 text-sm font-medium text-[#063642] outline-none focus:border-[#008B8B] focus:bg-white dark:border-[#1E4452] dark:bg-[#13323D] dark:text-slate-100"
+                className="h-11 flex-1 rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3 text-sm font-medium text-[#063642] outline-none focus:border-[#008B8B] focus:bg-white dark:border-[#1E4452] dark:bg-[#13323D] dark:text-white dark:focus:border-[#2DD4BF] dark:focus:bg-[#13323D]"
               />
               <button
                 type="button"

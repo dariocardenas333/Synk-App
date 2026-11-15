@@ -90,6 +90,8 @@ export interface GuestClient {
   id: string;
   nickname: string;
   city: CityName;
+  recoveryCode: string;
+  favorites?: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -100,12 +102,16 @@ export interface Conversation {
   clientId: string;
   clientName: string;
   clientRole: 'client' | 'merchant';
+  clientRecoveryCode?: string | null;
   courierId: string;
   courierName: string;
   courierCategory: ServiceCategory;
   courierPhotoUrl?: string | null;
   lastMessage: string;
   lastMessageAt: string;
+  lastMessageSenderId?: string | null;
+  unreadCount?: Record<string, number>;
+  typingBy?: Record<string, number>;
   createdAt: string;
   updatedAt: string;
 }
@@ -128,6 +134,7 @@ export interface Contract {
   clientId: string;
   clientName: string;
   clientRole: 'client' | 'merchant';
+  clientRecoveryCode?: string | null;
   courierId: string;
   courierName: string;
   serviceCategory: ServiceCategory;
@@ -175,6 +182,7 @@ export interface CurrentSession {
   displayName: string;
   city: CityName;
   isAnonymous: boolean;
+  recoveryCode?: string;
   email?: string;
   phone?: string;
 }

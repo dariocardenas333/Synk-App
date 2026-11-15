@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertCircle, X } from 'lucide-react';
 import { AuthSheet } from './components/AuthSheet';
 import { BottomNav, type MainTab } from './components/BottomNav';
@@ -14,6 +14,7 @@ import { GuestProfileView } from './components/GuestProfileView';
 import { Header } from './components/Header';
 import { HomeView } from './components/HomeView';
 import { MerchantWorkspaceView } from './components/MerchantWorkspaceView';
+import { NotificationPermissionBanner } from './components/NotificationPermissionBanner';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { RankingView } from './components/RankingView';
 import { SearchView } from './components/SearchView';
@@ -22,6 +23,12 @@ import { WelcomeView } from './components/WelcomeView';
 import { useTheme } from './hooks/useTheme';
 import { synkStore, type SynkStateSnapshot } from './services/synkStore';
 import type { CourierPublicProfile, ServiceCategory } from './types/synk';
+import {
+  getNotificationPermission,
+  requestNotificationPermission,
+  showIncomingNotification,
+  type AppNotificationPermission,
+} from './utils/notifications';
 
 type ScreenState =
   | { name: 'home' }
@@ -63,6 +70,22 @@ export default function App() {
   const [history, setHistory] = useState<ScreenState[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [notifPermission, setNotifPermission] = useState<AppNotificationPermission>(() =>
+    getNotificationPermission()
+  );
+  const [notifBannerDismissed, setNotifBannerDismissed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('alamano_notif_banner_dismissed_v1') === '1';
+    } catch {
+      return false;
+    }
+  });
+
+  const prevConvActivityRef = useRef<
+    Record<string, { lastMessageAt: string; unread: number }> | null
+  >(null);
+  const prevSessionUidRef = useRef<string | null>(null);
+  const handledUrlConvRef = useRef(false);
 
   useEffect(() => {
     return synkStore.subscribe(setSnap);
@@ -82,6 +105,86 @@ export default function App() {
     }
   }, [snap.ready, isProvider, screen.name]);
 
+  // Listen for Service Worker notification clicks -> open target conversation
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return;
+    const onSwMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'OPEN_CONVERSATION' && event.data?.conversationId) {
+        setScreen({ name: 'chatRoom', conversationId: String(event.data.conversationId) });
+      }
+    };
+    navigator.serviceWorker.addEventListener('message', onSwMessage);
+    return () => navigator.serviceWorker.removeEventListener('message', onSwMessage);
+  }, []);
+
+  // Open conversation if launched with ?conversationId=...
+  useEffect(() => {
+    if (!snap.ready || handledUrlConvRef.current || snap.conversations.length === 0) return;
+    const params = new URLSearchParams(window.location.search);
+    const targetConvId = params.get('conversationId');
+    if (targetConvId && snap.conversations.some((c) => c.id === targetConvId)) {
+      handledUrlConvRef.current = true;
+      setScreen({ name: 'chatRoom', conversationId: targetConvId });
+      params.delete('conversationId');
+      const nextUrl = params.toString()
+        ? `${window.location.pathname}?${params.toString()}`
+        : window.location.pathname;
+      window.history.replaceState({}, '', nextUrl);
+    }
+  }, [snap.ready, snap.conversations]);
+
+  // Trigger native notifications when new incoming messages arrive while minimized or on another screen
+  useEffect(() => {
+    if (!snap.ready) return;
+    if (prevSessionUidRef.current !== snap.session.uid) {
+      prevSessionUidRef.current = snap.session.uid;
+      prevConvActivityRef.current = null;
+    }
+    const currentMap: Record<string, { lastMessageAt: string; unread: number }> = {};
+    snap.conversations.forEach((c) => {
+      currentMap[c.id] = {
+        lastMessageAt: c.lastMessageAt,
+        unread: c.unreadCount?.[snap.session.uid] || 0,
+      };
+    });
+
+    if (prevConvActivityRef.current === null) {
+      prevConvActivityRef.current = currentMap;
+      return;
+    }
+
+    const prevMap = prevConvActivityRef.current;
+    snap.conversations.forEach((conv) => {
+      const prev = prevMap[conv.id];
+      const unread = conv.unreadCount?.[snap.session.uid] || 0;
+      const fromOther =
+        Boolean(conv.lastMessageSenderId) && conv.lastMessageSenderId !== snap.session.uid;
+      const hasNewActivity =
+        !prev || conv.lastMessageAt !== prev.lastMessageAt || unread > prev.unread;
+
+      if (fromOther && unread > 0 && hasNewActivity) {
+        const isViewingThisConv =
+          typeof document !== 'undefined' &&
+          !document.hidden &&
+          screen.name === 'chatRoom' &&
+          screen.conversationId === conv.id;
+
+        if (!isViewingThisConv) {
+          const senderTitle =
+            snap.session.uid === conv.courierId ? conv.clientName : conv.courierName;
+          void showIncomingNotification({
+            title: `${senderTitle} · AlaMano`,
+            body: conv.lastMessage,
+            conversationId: conv.id,
+            tag: `conv-${conv.id}`,
+          });
+        }
+      }
+    });
+
+    prevConvActivityRef.current = currentMap;
+  }, [snap.ready, snap.conversations, snap.session.uid, screen]);
+
   const showToast = (message: string) => {
     setToastMsg(message);
   };
@@ -91,6 +194,25 @@ export default function App() {
     const timer = setTimeout(() => setToastMsg(null), 4500);
     return () => clearTimeout(timer);
   }, [toastMsg]);
+
+  const handleEnableNotifications = useCallback(async () => {
+    const result = await requestNotificationPermission();
+    setNotifPermission(result);
+    if (result === 'granted') {
+      showToast('Notificaciones activadas. Vas a recibir alertas en tiempo real.');
+    } else if (result === 'denied') {
+      showToast('Las notificaciones están bloqueadas en tu navegador. Podés habilitarlas desde la configuración del sitio.');
+    }
+  }, []);
+
+  const handleDismissNotifBanner = useCallback(() => {
+    setNotifBannerDismissed(true);
+    try {
+      localStorage.setItem('alamano_notif_banner_dismissed_v1', '1');
+    } catch {
+      // Ignore storage error
+    }
+  }, []);
 
   const navigate = (next: ScreenState) => {
     setHistory((prev) => [...prev.slice(-8), screen]);
@@ -174,6 +296,13 @@ export default function App() {
     (c) => c.status === 'proposed' || c.status === 'accepted'
   );
 
+  const unreadChatsCount = useMemo(() => {
+    return snap.conversations.reduce(
+      (sum, c) => sum + (c.unreadCount?.[snap.session.uid] || 0),
+      0
+    );
+  }, [snap.conversations, snap.session.uid]);
+
   const ownCourier = isProvider
     ? snap.couriers.find((c) => c.id === snap.session.uid)
     : undefined;
@@ -223,7 +352,13 @@ export default function App() {
           <WelcomeView
             isDark={isDark}
             onToggleTheme={toggleTheme}
-            onSelectClient={() => synkStore.enterAsGuestClient()}
+            onSelectClient={(customNickname) => synkStore.enterAsGuestClient(customNickname)}
+            onRecoverClient={async (code) => {
+              const res = await synkStore.recoverGuestByCode(code);
+              showToast(
+                `¡Bienvenido de nuevo, ${res.nickname}! Recuperamos tus favoritos y ${res.recoveredChats} chat(s).`
+              );
+            }}
             onSelectProvider={() => navigate({ name: 'auth', initialType: 'courier' })}
           />
         ) : (
@@ -259,6 +394,17 @@ export default function App() {
             )}
 
             <main className="min-h-[calc(100dvh-120px)] bg-[#F8FAFA] dark:bg-[#07181E]">
+              <NotificationPermissionBanner
+                visible={
+                  screen.name !== 'auth' &&
+                  screen.name !== 'chatRoom' &&
+                  notifPermission === 'default' &&
+                  !notifBannerDismissed
+                }
+                isProvider={isProvider}
+                onEnable={handleEnableNotifications}
+                onDismiss={handleDismissNotifBanner}
+              />
               {/* Client / Merchant Views (strictly hidden for Providers) */}
               {!isProvider && screen.name === 'home' && (
                 <HomeView
@@ -362,6 +508,7 @@ export default function App() {
                   contracts={snap.contracts}
                   onBack={goBack}
                   onSaveGuest={(nick, city) => synkStore.completeGuestOnboarding(nick, city)}
+                  onRecoverGuest={(code) => synkStore.recoverGuestByCode(code)}
                   onOpenAuth={(type) => navigate({ name: 'auth', initialType: type })}
                   onOpenChat={(convId) => navigate({ name: 'chatRoom', conversationId: convId })}
                 />
@@ -418,6 +565,12 @@ export default function App() {
                       if (!isProvider) {
                         navigate({ name: 'profile', courierId: id });
                       }
+                    }}
+                    onMarkAsRead={() => {
+                      void synkStore.markConversationAsRead(conv.id);
+                    }}
+                    onTypingChange={(typing) => {
+                      void synkStore.setTypingState(conv.id, typing);
                     }}
                     onSendMessage={(txt) => synkStore.sendMessage(conv.id, txt)}
                     onProposeContract={async (input) => {
@@ -522,7 +675,7 @@ export default function App() {
               mode={isProvider ? 'provider' : 'client'}
               activeTab={activeBottomTab}
               onChangeTab={handleBottomTabChange}
-              activeChatsCount={activeContracts.length}
+              unreadChatsCount={unreadChatsCount}
             />
 
             <UserMenuSheet
@@ -531,6 +684,8 @@ export default function App() {
               favoritesCount={snap.favorites.length}
               firebaseConnected={snap.firebaseConnected}
               isDark={isDark}
+              notificationPermission={notifPermission}
+              onRequestNotifications={handleEnableNotifications}
               onToggleTheme={toggleTheme}
               onClose={() => setMenuOpen(false)}
               onOpenCourierAuthOrPanel={() => {

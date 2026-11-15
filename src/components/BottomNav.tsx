@@ -15,21 +15,24 @@ interface BottomNavProps {
   mode: 'client' | 'provider';
   activeTab: MainTab;
   onChangeTab: (tab: MainTab) => void;
-  activeChatsCount: number;
+  unreadChatsCount: number;
 }
 
 export const BottomNav: React.FC<BottomNavProps> = ({
   mode,
   activeTab,
   onChangeTab,
-  activeChatsCount,
+  unreadChatsCount,
 }) => {
   const chatsIcon = (
     <div className="relative">
       <MessageSquare className="h-5 w-5" />
-      {activeChatsCount > 0 && (
-        <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#008B8B] px-1 text-[10px] font-bold text-white tabular-nums">
-          {activeChatsCount > 9 ? '9+' : activeChatsCount}
+      {unreadChatsCount > 0 && (
+        <span
+          aria-label={`${unreadChatsCount} mensajes sin leer`}
+          className="absolute -right-2.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#EF4444] px-1 text-[10px] font-extrabold text-white shadow-xs tabular-nums"
+        >
+          {unreadChatsCount > 9 ? '9+' : unreadChatsCount}
         </span>
       )}
     </div>

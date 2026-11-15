@@ -18,9 +18,10 @@ service cloud.firestore {
       allow read, create, update: if isOwner(userId);
     }
 
-    // Clientes invitados (Anonymous Auth): solo el titular
+    // Clientes invitados (Anonymous Auth): lectura autenticada para búsqueda por código de recuperación (sin PII)
     match /guest_clients/{guestId} {
-      allow read, create, update: if isOwner(guestId);
+      allow read: if isSignedIn();
+      allow create, update: if isOwner(guestId);
     }
 
     // Perfiles públicos de repartidores
@@ -45,11 +46,24 @@ service cloud.firestore {
       allow read, write: if isOwner(userId);
     }
 
-    // Conversaciones privadas y mensajes
+    // Conversaciones privadas y mensajes (soporta recuperación anónima por código)
     match /conversations/{conversationId} {
-      allow read: if isSignedIn() && request.auth.uid in resource.data.participantIds;
+      allow read: if isSignedIn() && (
+        request.auth.uid in resource.data.participantIds ||
+        (resource.data.clientRecoveryCode is string && resource.data.clientRecoveryCode.size() >= 6)
+      );
       allow create: if isSignedIn() && request.auth.uid in request.resource.data.participantIds;
-      allow update: if isSignedIn() && request.auth.uid in resource.data.participantIds;
+      allow update: if isSignedIn() && (
+        request.auth.uid in resource.data.participantIds ||
+        (
+          resource.data.clientRecoveryCode is string &&
+          resource.data.clientRecoveryCode.size() >= 6 &&
+          request.resource.data.clientRecoveryCode == resource.data.clientRecoveryCode &&
+          request.resource.data.courierId == resource.data.courierId &&
+          request.resource.data.clientId == request.auth.uid &&
+          request.auth.uid in request.resource.data.participantIds
+        )
+      );
 
       match /messages/{messageId} {
         allow read, create: if isSignedIn() &&
@@ -57,13 +71,25 @@ service cloud.firestore {
       }
     }
 
-    // Contrataciones (solo participantes)
+    // Contrataciones (solo participantes + recuperación anónima por código)
     match /contracts/{contractId} {
-      allow read: if isSignedIn() &&
-        (request.auth.uid == resource.data.clientId || request.auth.uid == resource.data.courierId);
+      allow read: if isSignedIn() && (
+        request.auth.uid == resource.data.clientId ||
+        request.auth.uid == resource.data.courierId ||
+        (resource.data.clientRecoveryCode is string && resource.data.clientRecoveryCode.size() >= 6)
+      );
       allow create: if isSignedIn() && request.auth.uid == request.resource.data.clientId;
-      allow update: if isSignedIn() &&
-        (request.auth.uid == resource.data.clientId || request.auth.uid == resource.data.courierId);
+      allow update: if isSignedIn() && (
+        request.auth.uid == resource.data.clientId ||
+        request.auth.uid == resource.data.courierId ||
+        (
+          resource.data.clientRecoveryCode is string &&
+          resource.data.clientRecoveryCode.size() >= 6 &&
+          request.resource.data.clientRecoveryCode == resource.data.clientRecoveryCode &&
+          request.resource.data.courierId == resource.data.courierId &&
+          request.resource.data.clientId == request.auth.uid
+        )
+      );
     }
 
     // Valoraciones verificadas (1 por contrato completado, solo cliente contratante)

@@ -391,6 +391,31 @@ export function normalizeNickname(input: string): string {
   return trimmed.startsWith('@') ? trimmed : `@${trimmed}`;
 }
 
+const RECOVERY_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+export function generateRecoveryCode(): string {
+  let code = '';
+  for (let i = 0; i < 4; i++) {
+    code += RECOVERY_CHARS[Math.floor(Math.random() * RECOVERY_CHARS.length)];
+  }
+  // Ensure at least one digit so it looks clearly alphanumeric
+  if (!/[2-9]/.test(code)) {
+    const digit = String(Math.floor(2 + Math.random() * 8));
+    code = code.slice(0, 3) + digit;
+  }
+  return `ALM-${code}`;
+}
+
+export function normalizeRecoveryCode(input: string): string {
+  const cleaned = input.trim().toUpperCase().replace(/\s+/g, '');
+  if (!cleaned) return '';
+  if (cleaned.startsWith('ALM-')) return cleaned;
+  if (cleaned.startsWith('ALM') && cleaned.length >= 7) {
+    return `ALM-${cleaned.slice(3)}`;
+  }
+  return cleaned;
+}
+
 export function getInitials(name: string): string {
   const clean = name.replace(/^@/, '').trim();
   if (!clean) return 'AM';

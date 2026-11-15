@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Check, Store, Truck } from 'lucide-react';
+import { ArrowLeft, Check, Eye, EyeOff, Store, Truck } from 'lucide-react';
 import type {
   CourierRegistrationInput,
   MerchantRegistrationInput,
@@ -36,6 +36,7 @@ export const AuthSheet: React.FC<AuthSheetProps> = ({
   // Login & reset password state
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [showResetBox, setShowResetBox] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [resetSending, setResetSending] = useState(false);
@@ -48,6 +49,7 @@ export const AuthSheet: React.FC<AuthSheetProps> = ({
   const [cPhone, setCPhone] = useState('');
   const [cEmail, setCEmail] = useState('');
   const [cPassword, setCPassword] = useState('');
+  const [showCourierPassword, setShowCourierPassword] = useState(false);
   const [cCategories, setCCategories] = useState<ServiceCategory[]>(['motomandado']);
   const [cVehicle, setCVehicle] = useState('');
   const [cCity, setCCity] = useState<CityName>(defaultCity);
@@ -60,6 +62,7 @@ export const AuthSheet: React.FC<AuthSheetProps> = ({
   const [mPhone, setMPhone] = useState('');
   const [mEmail, setMEmail] = useState('');
   const [mPassword, setMPassword] = useState('');
+  const [showMerchantPassword, setShowMerchantPassword] = useState(false);
   const [mAddress, setMAddress] = useState('');
   const [mCity, setMCity] = useState<CityName>(defaultCity);
   const [mCategory, setMCategory] = useState(MERCHANT_CATEGORIES[0]);
@@ -310,14 +313,24 @@ export const AuthSheet: React.FC<AuthSheetProps> = ({
                       ¿Olvidaste tu contraseña?
                     </button>
                   </div>
-                  <input
-                    type="password"
-                    required
-                    value={loginPassword}
-                    onChange={(e) => setLoginPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="mt-1 h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3.5 text-sm text-[#063642] outline-none placeholder:text-slate-400 focus:border-[#008B8B] focus:bg-white dark:border-[#1E4452] dark:bg-[#13323D] dark:text-white dark:placeholder:text-slate-500 dark:focus:border-[#2DD4BF] dark:focus:bg-[#13323D]"
-                  />
+                  <div className="relative mt-1">
+                    <input
+                      type={showLoginPassword ? 'text' : 'password'}
+                      required
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] pl-3.5 pr-11 text-sm text-[#063642] outline-none placeholder:text-slate-400 focus:border-[#008B8B] focus:bg-white dark:border-[#1E4452] dark:bg-[#13323D] dark:text-white dark:placeholder:text-slate-500 dark:focus:border-[#2DD4BF] dark:focus:bg-[#13323D]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowLoginPassword((prev) => !prev)}
+                      aria-label={showLoginPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                      className="absolute right-1.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-200/70 hover:text-[#063642] dark:text-slate-400 dark:hover:bg-[#1A4352] dark:hover:text-white"
+                    >
+                      {showLoginPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
                 <button
                   type="submit"
@@ -477,14 +490,24 @@ export const AuthSheet: React.FC<AuthSheetProps> = ({
               <label className="block text-xs font-semibold text-[#063642] dark:text-slate-200">
                 Contraseña (mín. 6 caracteres)
               </label>
-              <input
-                type="password"
-                required
-                minLength={6}
-                value={cPassword}
-                onChange={(e) => setCPassword(e.target.value)}
-                className="mt-1 h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3 text-sm text-[#063642] outline-none focus:border-[#008B8B] focus:bg-white dark:border-[#1E4452] dark:bg-[#13323D] dark:text-white dark:focus:border-[#2DD4BF] dark:focus:bg-[#13323D]"
-              />
+              <div className="relative mt-1">
+                <input
+                  type={showCourierPassword ? 'text' : 'password'}
+                  required
+                  minLength={6}
+                  value={cPassword}
+                  onChange={(e) => setCPassword(e.target.value)}
+                  className="h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] pl-3 pr-11 text-sm text-[#063642] outline-none focus:border-[#008B8B] focus:bg-white dark:border-[#1E4452] dark:bg-[#13323D] dark:text-white dark:focus:border-[#2DD4BF] dark:focus:bg-[#13323D]"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCourierPassword((prev) => !prev)}
+                  aria-label={showCourierPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                  className="absolute right-1.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-200/70 hover:text-[#063642] dark:text-slate-400 dark:hover:bg-[#1A4352] dark:hover:text-white"
+                >
+                  {showCourierPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
 
             <div>
@@ -697,14 +720,24 @@ export const AuthSheet: React.FC<AuthSheetProps> = ({
               <label className="block text-xs font-semibold text-[#063642] dark:text-slate-200">
                 Contraseña (mín. 6 caracteres)
               </label>
-              <input
-                type="password"
-                required
-                minLength={6}
-                value={mPassword}
-                onChange={(e) => setMPassword(e.target.value)}
-                className="mt-1 h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3 text-sm text-[#063642] outline-none focus:border-[#008B8B] focus:bg-white dark:border-[#1E4452] dark:bg-[#13323D] dark:text-white dark:focus:border-[#2DD4BF] dark:focus:bg-[#13323D]"
-              />
+              <div className="relative mt-1">
+                <input
+                  type={showMerchantPassword ? 'text' : 'password'}
+                  required
+                  minLength={6}
+                  value={mPassword}
+                  onChange={(e) => setMPassword(e.target.value)}
+                  className="h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] pl-3 pr-11 text-sm text-[#063642] outline-none focus:border-[#008B8B] focus:bg-white dark:border-[#1E4452] dark:bg-[#13323D] dark:text-white dark:focus:border-[#2DD4BF] dark:focus:bg-[#13323D]"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowMerchantPassword((prev) => !prev)}
+                  aria-label={showMerchantPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                  className="absolute right-1.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-200/70 hover:text-[#063642] dark:text-slate-400 dark:hover:bg-[#1A4352] dark:hover:text-white"
+                >
+                  {showMerchantPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
 
             <button

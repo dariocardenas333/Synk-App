@@ -100,6 +100,8 @@ export const ChatListView: React.FC<ChatListViewProps> = ({
                 .filter((ct) => ct.conversationId === conv.id)
                 .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
               const latestContract = convContracts[0];
+              const unread = conv.unreadCount?.[session.uid] || 0;
+              const isUnread = unread > 0;
               const statusMeta = courier ? AVAILABILITY_META[courier.availabilityStatus] : null;
               const canQuickAccept =
                 isCourierUser &&
@@ -113,7 +115,9 @@ export const ChatListView: React.FC<ChatListViewProps> = ({
               return (
                 <div
                   key={conv.id}
-                  className="p-3.5 transition hover:bg-[#F8FAFA] dark:hover:bg-[#13323D]/60"
+                  className={`p-3.5 transition hover:bg-[#F8FAFA] dark:hover:bg-[#13323D]/60 ${
+                    isUnread ? 'bg-[#008B8B]/[0.04] dark:bg-[#2DD4BF]/[0.05]' : ''
+                  }`}
                 >
                   <button
                     type="button"
@@ -137,17 +141,40 @@ export const ChatListView: React.FC<ChatListViewProps> = ({
 
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
-                        <p className="truncate font-display text-sm font-bold text-[#063642] dark:text-white">
+                        <p
+                          className={`truncate font-display text-sm text-[#063642] dark:text-white ${
+                            isUnread ? 'font-extrabold' : 'font-bold'
+                          }`}
+                        >
                           {counterpartName}
                         </p>
-                        <span className="shrink-0 text-[11px] text-slate-400 tabular-nums">
+                        <span
+                          className={`shrink-0 text-[11px] tabular-nums ${
+                            isUnread
+                              ? 'font-bold text-[#EF4444]'
+                              : 'text-slate-400'
+                          }`}
+                        >
                           {formatTimeAR(conv.lastMessageAt)}
                         </span>
                       </div>
 
-                      <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-300">
-                        {conv.lastMessage}
-                      </p>
+                      <div className="mt-0.5 flex items-center justify-between gap-2">
+                        <p
+                          className={`truncate text-xs ${
+                            isUnread
+                              ? 'font-bold text-[#063642] dark:text-white'
+                              : 'text-slate-500 dark:text-slate-300'
+                          }`}
+                        >
+                          {conv.lastMessage}
+                        </p>
+                        {isUnread && (
+                          <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-[#EF4444] px-1.5 text-[11px] font-extrabold text-white tabular-nums">
+                            {unread > 99 ? '99+' : unread}
+                          </span>
+                        )}
+                      </div>
 
                       <div className="mt-1 flex items-center gap-2 text-[11px]">
                         <span className="font-medium text-slate-400">

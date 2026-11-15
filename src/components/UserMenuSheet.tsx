@@ -1,9 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
+  Bell,
+  BellOff,
   Briefcase,
+  Check,
   ChevronRight,
+  Copy,
   Eye,
   Heart,
+  KeyRound,
   LayoutDashboard,
   LogOut,
   Moon,
@@ -17,6 +22,7 @@ import {
   X,
 } from 'lucide-react';
 import type { CurrentSession } from '../types/synk';
+import type { AppNotificationPermission } from '../utils/notifications';
 import { PWAInstallButton } from './PWAInstallButton';
 
 interface UserMenuSheetProps {
@@ -25,6 +31,8 @@ interface UserMenuSheetProps {
   favoritesCount: number;
   firebaseConnected: boolean;
   isDark: boolean;
+  notificationPermission: AppNotificationPermission;
+  onRequestNotifications: () => Promise<void>;
   onToggleTheme: () => void;
   onClose: () => void;
   onOpenCourierAuthOrPanel: () => void;
@@ -44,6 +52,8 @@ export const UserMenuSheet: React.FC<UserMenuSheetProps> = ({
   favoritesCount,
   firebaseConnected,
   isDark,
+  notificationPermission,
+  onRequestNotifications,
   onToggleTheme,
   onClose,
   onOpenCourierAuthOrPanel,
@@ -56,6 +66,8 @@ export const UserMenuSheet: React.FC<UserMenuSheetProps> = ({
   onOpenRanking,
   onLogout,
 }) => {
+  const [copiedCode, setCopiedCode] = useState(false);
+
   if (!open) return null;
 
   const isProvider = session.role === 'courier';
@@ -65,6 +77,17 @@ export const UserMenuSheet: React.FC<UserMenuSheetProps> = ({
     : session.role === 'merchant'
     ? 'Cuenta de comercio'
     : 'Cliente invitado';
+
+  const handleCopyCode = async () => {
+    if (!session.recoveryCode) return;
+    try {
+      await navigator.clipboard.writeText(session.recoveryCode);
+      setCopiedCode(true);
+      setTimeout(() => setCopiedCode(false), 2500);
+    } catch {
+      setCopiedCode(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex justify-center bg-black/50 backdrop-blur-xs">
@@ -96,6 +119,44 @@ export const UserMenuSheet: React.FC<UserMenuSheetProps> = ({
               <X className="h-5 w-5" />
             </button>
           </div>
+
+          {/* Client Recovery Code Quick Card */}
+          {session.role === 'client' && session.recoveryCode && (
+            <div className="mt-4 rounded-2xl border border-[#008B8B]/30 bg-[#F8FAFA] p-3.5 dark:border-[#2DD4BF]/30 dark:bg-[#13323D]">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <KeyRound className="h-4 w-4 text-[#008B8B] dark:text-[#2DD4BF]" />
+                  <span className="text-xs font-bold text-[#063642] dark:text-white">
+                    Código de recuperación
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCopyCode}
+                  className="inline-flex h-8 items-center gap-1 rounded-lg bg-[#063642] px-2.5 text-[11px] font-bold text-white transition active:scale-95 dark:bg-[#008B8B]"
+                >
+                  {copiedCode ? (
+                    <>
+                      <Check className="h-3 w-3" />
+                      <span>¡Copiado!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-3 w-3" />
+                      <span>Copiar código</span>
+                    </>
+                  )}
+                </button>
+              </div>
+              <p className="mt-1.5 font-mono text-base font-extrabold tracking-widest text-[#008B8B] dark:text-[#2DD4BF]">
+                {session.recoveryCode}
+              </p>
+              <p className="mt-1 text-[11px] leading-snug text-slate-600 dark:text-slate-300">
+                Guardá este código para recuperar tus chats y favoritos si cambiás de celular o
+                borrás el historial.
+              </p>
+            </div>
+          )}
 
           <div className="mt-4 divide-y divide-slate-100 dark:divide-[#1E4452]">
             {/* Dark/Light Theme Switch Row */}
@@ -131,6 +192,46 @@ export const UserMenuSheet: React.FC<UserMenuSheetProps> = ({
                 />
               </span>
             </button>
+
+            {/* Notifications Status / Permission Row */}
+            {notificationPermission !== 'unsupported' && (
+              <button
+                type="button"
+                onClick={onRequestNotifications}
+                disabled={notificationPermission === 'granted'}
+                className="flex w-full items-center justify-between py-3.5 text-left transition hover:bg-[#F8FAFA] active:scale-[0.99] disabled:opacity-90 dark:hover:bg-[#13323D]/60"
+              >
+                <div className="flex items-center gap-3">
+                  {notificationPermission === 'granted' ? (
+                    <Bell className="h-5 w-5 text-[#22C55E]" />
+                  ) : (
+                    <BellOff className="h-5 w-5 text-[#F5A623]" />
+                  )}
+                  <div>
+                    <p className="text-sm font-semibold text-[#063642] dark:text-white">
+                      Notificaciones:{' '}
+                      {notificationPermission === 'granted'
+                        ? 'Activadas'
+                        : notificationPermission === 'denied'
+                        ? 'Bloqueadas en navegador'
+                        : 'Desactivadas'}
+                    </p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      {notificationPermission === 'granted'
+                        ? 'Recibirás alertas de mensajes incluso en segundo plano'
+                        : notificationPermission === 'denied'
+                        ? 'Habilitalas desde la configuración del sitio en tu navegador'
+                        : 'Tocá para activar alertas con sonido y vibración'}
+                    </p>
+                  </div>
+                </div>
+                {notificationPermission === 'default' && (
+                  <span className="shrink-0 rounded-lg bg-[#008B8B] px-2.5 py-1 text-[11px] font-bold text-white">
+                    Activar
+                  </span>
+                )}
+              </button>
+            )}
 
             {isProvider ? (
               <>
@@ -240,7 +341,7 @@ export const UserMenuSheet: React.FC<UserMenuSheetProps> = ({
                       </p>
                       <p className="text-xs text-slate-500 dark:text-slate-400">
                         {session.role === 'client'
-                          ? 'Editar tu nickname y ciudad'
+                          ? 'Editar nickname, ciudad y código de recuperación'
                           : 'Administrar perfil de comercio'}
                       </p>
                     </div>

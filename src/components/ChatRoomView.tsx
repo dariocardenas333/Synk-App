@@ -24,6 +24,8 @@ interface ChatRoomViewProps {
   contracts: Contract[];
   onBack: () => void;
   onViewCourierProfile: (courierId: string) => void;
+  onMarkAsRead: () => void;
+  onTypingChange: (isTyping: boolean) => void;
   onSendMessage: (text: string) => Promise<void>;
   onProposeContract: (input: {
     description: string;
@@ -44,6 +46,8 @@ export const ChatRoomView: React.FC<ChatRoomViewProps> = ({
   contracts,
   onBack,
   onViewCourierProfile,
+  onMarkAsRead,
+  onTypingChange,
   onSendMessage,
   onProposeContract,
   onAcceptContract,
@@ -58,6 +62,10 @@ export const ChatRoomView: React.FC<ChatRoomViewProps> = ({
   const [proposalPrice, setProposalPrice] = useState('');
   const [proposalModality, setProposalModality] = useState<'puntual' | 'recurrente'>('puntual');
   const [actionError, setActionError] = useState<string | null>(null);
+  const [isOnline, setIsOnline] = useState(
+    typeof navigator !== 'undefined' ? navigator.onLine : true
+  );
+  const [nowTs, setNowTs] = useState(() => Date.now());
 
   // Rating state
   const [ratingScore, setRatingScore] = useState(5);
@@ -65,10 +73,49 @@ export const ChatRoomView: React.FC<ChatRoomViewProps> = ({
   const [submittingRating, setSubmittingRating] = useState(false);
 
   const endRef = useRef<HTMLDivElement | null>(null);
+  const lastTypingEmitRef = useRef<number>(0);
+  const typingStopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const unreadForMe = conversation.unreadCount?.[session.uid] || 0;
+
+  useEffect(() => {
+    onMarkAsRead();
+  }, [conversation.id, messages.length, unreadForMe, onMarkAsRead]);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  const otherParticipantId = conversation.participantIds.find((id) => id !== session.uid);
+  const otherTypingAt = otherParticipantId
+    ? conversation.typingBy?.[otherParticipantId] || 0
+    : 0;
+  const isOtherTyping = otherTypingAt > 0 && nowTs - otherTypingAt < 5500;
+
+  useEffect(() => {
+    if (!otherTypingAt) return;
+    setNowTs(Date.now());
+    const interval = setInterval(() => setNowTs(Date.now()), 2000);
+    return () => clearInterval(interval);
+  }, [otherTypingAt]);
+
+  useEffect(() => {
+    return () => {
+      if (typingStopTimerRef.current) clearTimeout(typingStopTimerRef.current);
+      onTypingChange(false);
+    };
+  }, [conversation.id, onTypingChange]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages.length, contracts.length]);
+  }, [messages.length, contracts.length, isOtherTyping]);
 
   const isCourierUser = session.uid === conversation.courierId;
   const counterpartName = isCourierUser ? conversation.clientName : conversation.courierName;
@@ -85,9 +132,40 @@ export const ChatRoomView: React.FC<ChatRoomViewProps> = ({
     (c) => c.status === 'completed' && !c.rated && c.clientId === session.uid
   );
 
+  const handleTextChange = (val: string) => {
+    setText(val);
+    if (typingStopTimerRef.current) {
+      clearTimeout(typingStopTimerRef.current);
+      typingStopTimerRef.current = null;
+    }
+
+    if (!val.trim()) {
+      lastTypingEmitRef.current = 0;
+      onTypingChange(false);
+      return;
+    }
+
+    const now = Date.now();
+    if (now - lastTypingEmitRef.current > 2200) {
+      lastTypingEmitRef.current = now;
+      onTypingChange(true);
+    }
+
+    typingStopTimerRef.current = setTimeout(() => {
+      lastTypingEmitRef.current = 0;
+      onTypingChange(false);
+    }, 3500);
+  };
+
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!text.trim() || sending) return;
+    if (typingStopTimerRef.current) {
+      clearTimeout(typingStopTimerRef.current);
+      typingStopTimerRef.current = null;
+    }
+    lastTypingEmitRef.current = 0;
+    onTypingChange(false);
     setSending(true);
     setActionError(null);
     try {
@@ -164,10 +242,28 @@ export const ChatRoomView: React.FC<ChatRoomViewProps> = ({
               >
                 {counterpartName}
               </button>
-              {courier && statusMeta && (
-                <p className="text-[11px] font-medium">
-                  <span className={statusMeta.textClass}>{statusMeta.label}</span>
-                  <span className="text-slate-400"> · {courier.city}</span>
+              {isOtherTyping ? (
+                <p className="flex items-center gap-1.5 text-[11px] font-semibold text-[#008B8B] dark:text-[#2DD4BF]">
+                  <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[#008B8B] dark:bg-[#2DD4BF]" />
+                  <span>Escribiendo...</span>
+                </p>
+              ) : (
+                <p className="flex items-center gap-1.5 text-[11px] font-medium">
+                  <span
+                    className={`inline-block h-1.5 w-1.5 rounded-full ${
+                      isOnline ? 'bg-[#22C55E]' : 'bg-[#F5A623]'
+                    }`}
+                  />
+                  {courier && statusMeta ? (
+                    <>
+                      <span className={statusMeta.textClass}>{statusMeta.label}</span>
+                      <span className="text-slate-400">· {courier.city}</span>
+                    </>
+                  ) : (
+                    <span className="text-slate-500 dark:text-slate-400">
+                      {isOnline ? 'En línea · Tiempo real' : 'Sin conexión'}
+                    </span>
+                  )}
                 </p>
               )}
             </div>
@@ -425,6 +521,19 @@ export const ChatRoomView: React.FC<ChatRoomViewProps> = ({
           </form>
         )}
 
+        {isOtherTyping && (
+          <div className="flex justify-start">
+            <div className="inline-flex items-center gap-2 rounded-2xl rounded-bl-sm border border-[#E2E8F0] bg-white px-3.5 py-2 text-xs font-semibold text-[#008B8B] dark:border-[#1E4452] dark:bg-[#0D252E] dark:text-[#2DD4BF]">
+              <span className="flex gap-1">
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#008B8B] [animation-delay:-0.2s] dark:bg-[#2DD4BF]" />
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#008B8B] [animation-delay:-0.1s] dark:bg-[#2DD4BF]" />
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#008B8B] dark:bg-[#2DD4BF]" />
+              </span>
+              <span>{counterpartName} está escribiendo...</span>
+            </div>
+          </div>
+        )}
+
         <div ref={endRef} />
       </div>
 
@@ -436,7 +545,11 @@ export const ChatRoomView: React.FC<ChatRoomViewProps> = ({
         <input
           type="text"
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => handleTextChange(e.target.value)}
+          onBlur={() => {
+            lastTypingEmitRef.current = 0;
+            onTypingChange(false);
+          }}
           placeholder="Escribí tu mensaje..."
           className="h-11 flex-1 rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3.5 text-sm text-[#063642] outline-none placeholder:text-slate-400 focus:border-[#008B8B] focus:bg-white dark:border-[#1E4452] dark:bg-[#13323D] dark:text-slate-100 dark:focus:border-[#2DD4BF]"
         />

@@ -12,6 +12,8 @@ import {
   doc,
   getDoc,
   getDocs,
+  increment,
+  limit,
   onSnapshot,
   orderBy,
   query,
@@ -37,7 +39,13 @@ import type {
   ServiceCategory,
   TariffItem,
 } from '../types/synk';
-import { computeCourierPoints, generateRandomNickname, normalizeNickname } from '../utils/formatters';
+import {
+  computeCourierPoints,
+  generateRandomNickname,
+  generateRecoveryCode,
+  normalizeNickname,
+  normalizeRecoveryCode,
+} from '../utils/formatters';
 
 const STORAGE_KEYS = {
   GUEST_PROFILE: 'synk_guest_profile_v1',
@@ -51,6 +59,7 @@ const STORAGE_KEYS = {
   LOCAL_CONTRACTS: 'synk_local_contracts_v1',
   LOCAL_RATINGS: 'synk_local_ratings_v1',
   LOCAL_JOBS: 'synk_local_jobs_v1',
+  LOCAL_GUEST_ARCHIVE: 'alamano_local_guest_archive_v1',
   FIRST_JOB_PREFIX: 'alamano_first_job_celebrated_',
 } as const;
 
@@ -69,6 +78,7 @@ interface StoredGuest {
   id: string;
   nickname: string;
   city: CityName;
+  recoveryCode: string;
   onboarded: boolean;
   createdAt: string;
   updatedAt: string;
@@ -251,6 +261,15 @@ class SynkStore {
   private ensureGuestRecord(): StoredGuest {
     const existing = readJSON<StoredGuest | null>(STORAGE_KEYS.GUEST_PROFILE, null);
     if (existing && existing.id && existing.nickname) {
+      if (!existing.recoveryCode) {
+        const updated: StoredGuest = {
+          ...existing,
+          recoveryCode: generateRecoveryCode(),
+          updatedAt: new Date().toISOString(),
+        };
+        writeJSON(STORAGE_KEYS.GUEST_PROFILE, updated);
+        return updated;
+      }
       return existing;
     }
     const now = new Date().toISOString();
@@ -258,12 +277,27 @@ class SynkStore {
       id: makeId('guest'),
       nickname: generateRandomNickname(),
       city: 'Trelew',
+      recoveryCode: generateRecoveryCode(),
       onboarded: false,
       createdAt: now,
       updatedAt: now,
     };
     writeJSON(STORAGE_KEYS.GUEST_PROFILE, fresh);
     return fresh;
+  }
+
+  private saveLocalGuestArchive(guest: StoredGuest, favorites: string[]): void {
+    if (!guest.recoveryCode) return;
+    const archive = readJSON<
+      Record<string, { id: string; nickname: string; city: CityName; favorites: string[] }>
+    >(STORAGE_KEYS.LOCAL_GUEST_ARCHIVE, {});
+    archive[guest.recoveryCode] = {
+      id: guest.id,
+      nickname: guest.nickname,
+      city: guest.city,
+      favorites,
+    };
+    writeJSON(STORAGE_KEYS.LOCAL_GUEST_ARCHIVE, archive);
   }
 
   private loadLocalCollections(): void {
@@ -294,9 +328,13 @@ class SynkStore {
       displayName: guest.nickname,
       city: guest.city || 'Trelew',
       isAnonymous: true,
+      recoveryCode: guest.recoveryCode,
     };
 
     const userFavorites = allFavs[session.uid] || [];
+    if (session.role === 'client') {
+      this.saveLocalGuestArchive(guest, userFavorites);
+    }
     const userConversations = localConversations
       .filter((c) => c.participantIds.includes(session.uid) || (session.role === 'client' && c.clientId === guest.id))
       .sort((a, b) => b.lastMessageAt.localeCompare(a.lastMessageAt));
@@ -360,6 +398,7 @@ class SynkStore {
         displayName: guest.nickname,
         city: guest.city || 'Trelew',
         isAnonymous: fbUser.isAnonymous,
+        recoveryCode: fbUser.isAnonymous ? guest.recoveryCode : undefined,
       };
       let needsOnboarding = false;
 
@@ -369,17 +408,44 @@ class SynkStore {
           const snap = await getDoc(guestRef);
           if (snap.exists()) {
             const data = snap.data();
+            const code =
+              typeof data.recoveryCode === 'string' && data.recoveryCode.trim()
+                ? data.recoveryCode.trim()
+                : guest.recoveryCode || generateRecoveryCode();
             session.displayName = data.nickname || guest.nickname;
             session.city = (data.city as CityName) || guest.city || 'Trelew';
+            session.recoveryCode = code;
             needsOnboarding = !guest.onboarded;
+
+            writeJSON(STORAGE_KEYS.GUEST_PROFILE, {
+              ...guest,
+              nickname: session.displayName,
+              city: session.city,
+              recoveryCode: code,
+            });
+
+            if (!data.recoveryCode) {
+              await setDoc(
+                guestRef,
+                sanitizeFirestoreData({
+                  recoveryCode: code,
+                  updatedAt: serverTimestamp(),
+                }),
+                { merge: true }
+              );
+            }
           } else {
             needsOnboarding = !guest.onboarded;
+            const code = guest.recoveryCode || generateRecoveryCode();
+            session.recoveryCode = code;
             await setDoc(
               guestRef,
               sanitizeFirestoreData({
                 id: fbUser.uid,
                 nickname: guest.nickname || '@invitado',
                 city: guest.city || 'Trelew',
+                recoveryCode: code,
+                favorites: [],
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
               })
@@ -590,6 +656,7 @@ class SynkStore {
               clientId: data.clientId,
               clientName: data.clientName,
               clientRole: data.clientRole || 'client',
+              clientRecoveryCode: data.clientRecoveryCode || null,
               courierId: data.courierId,
               courierName: data.courierName,
               courierCategory: data.courierCategory || 'motomandado',
@@ -599,6 +666,9 @@ class SynkStore {
                 data.lastMessageAt?.toDate?.()?.toISOString?.() ||
                 data.lastMessageAt ||
                 new Date().toISOString(),
+              lastMessageSenderId: data.lastMessageSenderId || null,
+              unreadCount: (data.unreadCount as Record<string, number>) || {},
+              typingBy: (data.typingBy as Record<string, number>) || {},
               createdAt: data.createdAt?.toDate?.()?.toISOString?.() || new Date().toISOString(),
               updatedAt: data.updatedAt?.toDate?.()?.toISOString?.() || new Date().toISOString(),
             };
@@ -788,9 +858,12 @@ class SynkStore {
   }
 
   // ---- GUEST & ONBOARDING ACTIONS ----
-  async enterAsGuestClient(): Promise<void> {
+  async enterAsGuestClient(customNickname?: string): Promise<void> {
     const guest = this.ensureGuestRecord();
-    const nickname = guest.nickname || generateRandomNickname();
+    const nickname =
+      customNickname && customNickname.trim()
+        ? customNickname.trim()
+        : guest.nickname || generateRandomNickname();
     await this.completeGuestOnboarding(nickname, guest.city || 'Trelew');
   }
 
@@ -798,14 +871,17 @@ class SynkStore {
     const nickname = normalizeNickname(nicknameInput);
     const guest = this.ensureGuestRecord();
     const nextCity = city || guest.city || 'Trelew';
+    const recoveryCode = this.state.session.recoveryCode || guest.recoveryCode || generateRecoveryCode();
     const updated: StoredGuest = {
       ...guest,
       nickname,
       city: nextCity,
+      recoveryCode,
       onboarded: true,
       updatedAt: new Date().toISOString(),
     };
     writeJSON(STORAGE_KEYS.GUEST_PROFILE, updated);
+    this.saveLocalGuestArchive(updated, this.state.favorites);
 
     if (isFirebaseConfigured && db && this.state.session.isAnonymous) {
       await setDoc(
@@ -814,6 +890,8 @@ class SynkStore {
           id: this.state.session.uid,
           nickname: nickname || '@invitado',
           city: nextCity || 'Trelew',
+          recoveryCode,
+          favorites: this.state.favorites,
           updatedAt: serverTimestamp(),
         }),
         { merge: true }
@@ -828,6 +906,7 @@ class SynkStore {
           ...this.state.session,
           displayName: nickname,
           city: nextCity,
+          recoveryCode,
         },
       };
       this.emit();
@@ -836,6 +915,201 @@ class SynkStore {
       this.emit();
     }
     this.broadcastSync();
+  }
+
+  async recoverGuestByCode(rawCode: string): Promise<{ nickname: string; recoveredChats: number }> {
+    const code = normalizeRecoveryCode(rawCode);
+    if (!code || code.length < 6) {
+      throw new Error('Ingresá un código de recuperación válido (ej. ALM-8492).');
+    }
+
+    const currentUid = this.state.session.uid;
+
+    if (isFirebaseConfigured && db) {
+      const guestQuery = query(
+        collection(db, FIRESTORE_COLLECTIONS.GUEST_CLIENTS),
+        where('recoveryCode', '==', code),
+        limit(1)
+      );
+      const guestSnap = await getDocs(guestQuery);
+      if (guestSnap.empty) {
+        throw new Error('No encontramos ninguna cuenta con ese código de recuperación.');
+      }
+
+      const oldDoc = guestSnap.docs[0];
+      const oldUid = oldDoc.id;
+      const oldData = oldDoc.data();
+      const restoredNickname = String(oldData.nickname || generateRandomNickname());
+      const restoredCity = (oldData.city as CityName) || 'Trelew';
+      const restoredFavs: string[] = Array.isArray(oldData.favorites)
+        ? oldData.favorites.filter((x): x is string => typeof x === 'string')
+        : [];
+
+      const mergedFavs = Array.from(new Set([...this.state.favorites, ...restoredFavs]));
+
+      await setDoc(
+        doc(db, FIRESTORE_COLLECTIONS.GUEST_CLIENTS, currentUid),
+        sanitizeFirestoreData({
+          id: currentUid,
+          nickname: restoredNickname,
+          city: restoredCity,
+          recoveryCode: code,
+          favorites: mergedFavs,
+          updatedAt: serverTimestamp(),
+        }),
+        { merge: true }
+      );
+
+      for (const favCourierId of mergedFavs) {
+        if (!this.state.favorites.includes(favCourierId)) {
+          await setDoc(
+            doc(
+              db,
+              FIRESTORE_COLLECTIONS.USERS_ROOT,
+              currentUid,
+              FIRESTORE_COLLECTIONS.FAVORITES_SUBCOLLECTION,
+              favCourierId
+            ),
+            { courierId: favCourierId, createdAt: serverTimestamp() }
+          );
+        }
+      }
+
+      let recoveredChats = 0;
+      if (oldUid !== currentUid) {
+        const convSnap = await getDocs(
+          query(
+            collection(db, FIRESTORE_COLLECTIONS.CONVERSATIONS),
+            where('clientRecoveryCode', '==', code)
+          )
+        );
+        for (const cDoc of convSnap.docs) {
+          const cData = cDoc.data();
+          const prevUnread = (cData.unreadCount as Record<string, number>) || {};
+          const migratedUnread: Record<string, number> = {
+            ...prevUnread,
+            [currentUid]: prevUnread[oldUid] || prevUnread[currentUid] || 0,
+          };
+          if (oldUid !== currentUid) {
+            delete migratedUnread[oldUid];
+          }
+          await updateDoc(
+            doc(db, FIRESTORE_COLLECTIONS.CONVERSATIONS, cDoc.id),
+            sanitizeFirestoreData({
+              clientId: currentUid,
+              clientName: restoredNickname,
+              participantIds: [currentUid, cData.courierId],
+              unreadCount: migratedUnread,
+              updatedAt: serverTimestamp(),
+            })
+          );
+          recoveredChats += 1;
+        }
+
+        const contractSnap = await getDocs(
+          query(
+            collection(db, FIRESTORE_COLLECTIONS.CONTRACTS),
+            where('clientRecoveryCode', '==', code)
+          )
+        );
+        for (const ctDoc of contractSnap.docs) {
+          await updateDoc(
+            doc(db, FIRESTORE_COLLECTIONS.CONTRACTS, ctDoc.id),
+            sanitizeFirestoreData({
+              clientId: currentUid,
+              clientName: restoredNickname,
+              updatedAt: serverTimestamp(),
+            })
+          );
+        }
+      } else {
+        recoveredChats = this.state.conversations.length;
+      }
+
+      const guest = this.ensureGuestRecord();
+      writeJSON(STORAGE_KEYS.GUEST_PROFILE, {
+        ...guest,
+        id: currentUid,
+        nickname: restoredNickname,
+        city: restoredCity,
+        recoveryCode: code,
+        onboarded: true,
+        updatedAt: new Date().toISOString(),
+      });
+
+      this.state = {
+        ...this.state,
+        needsOnboarding: false,
+        favorites: mergedFavs,
+        session: {
+          ...this.state.session,
+          displayName: restoredNickname,
+          city: restoredCity,
+          recoveryCode: code,
+        },
+      };
+      this.emit();
+      return { nickname: restoredNickname, recoveredChats };
+    }
+
+    // Local fallback mode recovery
+    const archive = readJSON<
+      Record<string, { id: string; nickname: string; city: CityName; favorites: string[] }>
+    >(STORAGE_KEYS.LOCAL_GUEST_ARCHIVE, {});
+    const archived = archive[code];
+    const localConvs = readJSON<Conversation[]>(STORAGE_KEYS.LOCAL_CONVERSATIONS, []);
+    const matchingConvs = localConvs.filter((c) => c.clientRecoveryCode === code);
+
+    if (!archived && matchingConvs.length === 0) {
+      throw new Error('No encontramos ninguna cuenta con ese código de recuperación.');
+    }
+
+    const guest = this.ensureGuestRecord();
+    const restoredNickname = archived?.nickname || matchingConvs[0]?.clientName || guest.nickname;
+    const restoredCity = archived?.city || guest.city || 'Trelew';
+    const restoredFavs = archived?.favorites || [];
+
+    const updatedGuest: StoredGuest = {
+      ...guest,
+      nickname: restoredNickname,
+      city: restoredCity,
+      recoveryCode: code,
+      onboarded: true,
+      updatedAt: new Date().toISOString(),
+    };
+    writeJSON(STORAGE_KEYS.GUEST_PROFILE, updatedGuest);
+
+    const allFavs = readJSON<Record<string, string[]>>(STORAGE_KEYS.LOCAL_FAVORITES, {});
+    allFavs[guest.id] = Array.from(new Set([...(allFavs[guest.id] || []), ...restoredFavs]));
+    writeJSON(STORAGE_KEYS.LOCAL_FAVORITES, allFavs);
+
+    writeJSON(
+      STORAGE_KEYS.LOCAL_CONVERSATIONS,
+      localConvs.map((c) =>
+        c.clientRecoveryCode === code
+          ? {
+              ...c,
+              clientId: guest.id,
+              clientName: restoredNickname,
+              participantIds: [guest.id, c.courierId],
+            }
+          : c
+      )
+    );
+
+    const localContracts = readJSON<Contract[]>(STORAGE_KEYS.LOCAL_CONTRACTS, []);
+    writeJSON(
+      STORAGE_KEYS.LOCAL_CONTRACTS,
+      localContracts.map((ct) =>
+        ct.clientRecoveryCode === code
+          ? { ...ct, clientId: guest.id, clientName: restoredNickname }
+          : ct
+      )
+    );
+
+    this.broadcastSync();
+    this.loadLocalCollections();
+    return { nickname: restoredNickname, recoveredChats: matchingConvs.length };
   }
 
   async updateCity(city: CityName): Promise<void> {
@@ -1498,6 +1772,9 @@ class SynkStore {
   async toggleFavorite(courierId: string): Promise<void> {
     const uid = this.state.session.uid;
     const isFav = this.state.favorites.includes(courierId);
+    const nextFavs = isFav
+      ? this.state.favorites.filter((id) => id !== courierId)
+      : [...this.state.favorites, courierId];
 
     if (isFirebaseConfigured && db) {
       const favRef = doc(
@@ -1512,13 +1789,29 @@ class SynkStore {
       } else {
         await setDoc(favRef, { courierId, createdAt: serverTimestamp() });
       }
+      if (this.state.session.isAnonymous) {
+        try {
+          await setDoc(
+            doc(db, FIRESTORE_COLLECTIONS.GUEST_CLIENTS, uid),
+            sanitizeFirestoreData({
+              favorites: nextFavs,
+              updatedAt: serverTimestamp(),
+            }),
+            { merge: true }
+          );
+        } catch {
+          // Ignore non-critical favorite backup error
+        }
+      }
       return;
     }
 
     const allFavs = readJSON<Record<string, string[]>>(STORAGE_KEYS.LOCAL_FAVORITES, {});
-    const current = allFavs[uid] || [];
-    allFavs[uid] = isFav ? current.filter((id) => id !== courierId) : [...current, courierId];
+    allFavs[uid] = nextFavs;
     writeJSON(STORAGE_KEYS.LOCAL_FAVORITES, allFavs);
+    if (this.state.session.role === 'client') {
+      this.saveLocalGuestArchive(this.ensureGuestRecord(), nextFavs);
+    }
     this.broadcastSync();
     this.loadLocalCollections();
   }
@@ -1552,18 +1845,27 @@ class SynkStore {
 
     const convId = `${session.uid}__${courier.id}`;
     const now = new Date().toISOString();
+    const clientRecoveryCode =
+      session.role === 'client' ? session.recoveryCode || this.ensureGuestRecord().recoveryCode : null;
     const conv: Conversation = {
       id: convId,
       participantIds: [session.uid, courier.id],
       clientId: session.uid,
       clientName: session.displayName || '@invitado',
       clientRole: session.role === 'merchant' ? 'merchant' : 'client',
+      clientRecoveryCode,
       courierId: courier.id,
       courierName: courier.publicName || 'Prestador',
       courierCategory: courier.serviceCategory || 'motomandado',
       courierPhotoUrl: courier.photoUrl || null,
       lastMessage: initialMessage || 'Conversación iniciada',
       lastMessageAt: now,
+      lastMessageSenderId: initialMessage ? session.uid : null,
+      unreadCount: {
+        [session.uid]: 0,
+        [courier.id]: 0,
+      },
+      typingBy: {},
       createdAt: now,
       updatedAt: now,
     };
@@ -1621,6 +1923,9 @@ class SynkStore {
       createdAt: now,
     };
 
+    const conv = this.state.conversations.find((c) => c.id === conversationId);
+    const otherId = conv?.participantIds.find((id) => id !== session.uid);
+
     if (isFirebaseConfigured && db) {
       const batch = writeBatch(db);
       batch.set(
@@ -1633,13 +1938,22 @@ class SynkStore {
         ),
         sanitizeFirestoreData({ ...msg, contractId: contractId || null, createdAt: serverTimestamp() })
       );
+
+      const convPatch: Record<string, unknown> = {
+        lastMessage: clean,
+        lastMessageAt: serverTimestamp(),
+        lastMessageSenderId: session.uid,
+        updatedAt: serverTimestamp(),
+        [`unreadCount.${session.uid}`]: 0,
+        [`typingBy.${session.uid}`]: 0,
+      };
+      if (otherId) {
+        convPatch[`unreadCount.${otherId}`] = increment(1);
+      }
+
       batch.update(
         doc(db, FIRESTORE_COLLECTIONS.CONVERSATIONS, conversationId),
-        sanitizeFirestoreData({
-          lastMessage: clean,
-          lastMessageAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        })
+        convPatch
       );
       await batch.commit();
       return;
@@ -1652,12 +1966,94 @@ class SynkStore {
     const convs = readJSON<Conversation[]>(STORAGE_KEYS.LOCAL_CONVERSATIONS, []);
     writeJSON(
       STORAGE_KEYS.LOCAL_CONVERSATIONS,
-      convs.map((c) =>
-        c.id === conversationId ? { ...c, lastMessage: clean, lastMessageAt: now, updatedAt: now } : c
-      )
+      convs.map((c) => {
+        if (c.id !== conversationId) return c;
+        const recipientId = c.participantIds.find((id) => id !== session.uid);
+        const nextUnread: Record<string, number> = {
+          ...(c.unreadCount || {}),
+          [session.uid]: 0,
+        };
+        if (recipientId) {
+          nextUnread[recipientId] = (nextUnread[recipientId] || 0) + 1;
+        }
+        return {
+          ...c,
+          lastMessage: clean,
+          lastMessageAt: now,
+          lastMessageSenderId: session.uid,
+          unreadCount: nextUnread,
+          typingBy: { ...(c.typingBy || {}), [session.uid]: 0 },
+          updatedAt: now,
+        };
+      })
     );
     this.broadcastSync();
     this.loadLocalCollections();
+  }
+
+  async markConversationAsRead(conversationId: string): Promise<void> {
+    const uid = this.state.session.uid;
+    const conv = this.state.conversations.find((c) => c.id === conversationId);
+    if (!conv || (conv.unreadCount?.[uid] || 0) === 0) return;
+
+    this.state = {
+      ...this.state,
+      conversations: this.state.conversations.map((c) =>
+        c.id === conversationId
+          ? { ...c, unreadCount: { ...(c.unreadCount || {}), [uid]: 0 } }
+          : c
+      ),
+    };
+    this.emit();
+
+    if (isFirebaseConfigured && db) {
+      try {
+        await updateDoc(doc(db, FIRESTORE_COLLECTIONS.CONVERSATIONS, conversationId), {
+          [`unreadCount.${uid}`]: 0,
+        });
+      } catch (err) {
+        console.error('Error marking conversation as read:', err);
+      }
+      return;
+    }
+
+    const convs = readJSON<Conversation[]>(STORAGE_KEYS.LOCAL_CONVERSATIONS, []);
+    writeJSON(
+      STORAGE_KEYS.LOCAL_CONVERSATIONS,
+      convs.map((c) =>
+        c.id === conversationId
+          ? { ...c, unreadCount: { ...(c.unreadCount || {}), [uid]: 0 } }
+          : c
+      )
+    );
+    this.broadcastSync();
+  }
+
+  async setTypingState(conversationId: string, isTyping: boolean): Promise<void> {
+    const uid = this.state.session.uid;
+    const ts = isTyping ? Date.now() : 0;
+
+    if (isFirebaseConfigured && db) {
+      try {
+        await updateDoc(doc(db, FIRESTORE_COLLECTIONS.CONVERSATIONS, conversationId), {
+          [`typingBy.${uid}`]: ts,
+        });
+      } catch {
+        // Ignore transient typing indicator error
+      }
+      return;
+    }
+
+    const convs = readJSON<Conversation[]>(STORAGE_KEYS.LOCAL_CONVERSATIONS, []);
+    writeJSON(
+      STORAGE_KEYS.LOCAL_CONVERSATIONS,
+      convs.map((c) =>
+        c.id === conversationId
+          ? { ...c, typingBy: { ...(c.typingBy || {}), [uid]: ts } }
+          : c
+      )
+    );
+    this.broadcastSync();
   }
 
   // ---- CONTRACTS & AVAILABILITY STATE MACHINE ----
@@ -1690,6 +2086,7 @@ class SynkStore {
       clientId: conv.clientId,
       clientName: conv.clientName || '@invitado',
       clientRole: conv.clientRole || 'client',
+      clientRecoveryCode: conv.clientRecoveryCode || null,
       courierId: courier.id,
       courierName: courier.publicName || 'Prestador',
       serviceCategory: courier.serviceCategory || 'motomandado',

@@ -452,7 +452,7 @@ export const AVAILABILITY_META: Record<
   available: {
     status: 'available',
     label: 'Disponible',
-    shortDesc: 'Activo y listo para recibir pedidos',
+    shortDesc: 'Activo y listo para trabajar',
     colorHex: '#22C55E',
     textClass: 'text-[#15803D] dark:text-[#4ADE80]',
     bgSoftClass: 'bg-[#22C55E]/12 dark:bg-[#22C55E]/20',

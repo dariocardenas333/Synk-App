@@ -43,7 +43,7 @@ const SHIFT_STATES: Array<{
   {
     status: 'available',
     label: 'Disponible',
-    sub: 'Listo para pedidos',
+    sub: 'Listo para trabajar',
     activeBg: 'bg-[#22C55E] text-white',
     activeBorder: 'border-[#22C55E]',
     icon: <CheckCircle2 className="h-6 w-6" />,

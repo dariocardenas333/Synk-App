@@ -85,6 +85,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
         c.vehicle,
         c.workZone,
         c.description,
+        c.tutoringSubjects || '',
+        ...(c.tutoringLevels || []),
         ...c.coverageZones,
         catText,
       ]
@@ -267,7 +269,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 onClick={() => setShowAllCategories(true)}
                 className="mt-3.5 flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[#063642]/20 bg-white px-4 font-display text-sm font-bold text-[#063642] transition hover:border-[#008B8B] hover:text-[#008B8B] active:scale-[0.99] dark:border-[#1E4452] dark:bg-[#0D252E] dark:text-white dark:hover:border-[#2DD4BF] dark:hover:text-[#2DD4BF]"
               >
-                <span>Ver más rubros (+10)</span>
+                <span>
+                  Ver más rubros (+{ORDERED_CATEGORIES.length - FEATURED_CATEGORIES.length})
+                </span>
                 <ChevronDown className="h-4 w-4 text-[#008B8B] dark:text-[#2DD4BF]" />
               </button>
             </>
@@ -275,7 +279,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             <div className="space-y-5">
               <div className="flex items-center justify-between">
                 <p className="font-display text-sm font-extrabold text-[#063642] dark:text-white">
-                  Todos los rubros (14)
+                  Todos los rubros ({ORDERED_CATEGORIES.length})
                 </p>
                 <button
                   type="button"

@@ -4,13 +4,14 @@ import {
   ChevronDown,
   ChevronUp,
   Clock,
+  GraduationCap,
   Heart,
   MapPin,
   MessageSquare,
   PowerOff,
   Star,
 } from 'lucide-react';
-import type { CourierPublicProfile } from '../types/synk';
+import type { CourierPublicProfile, ServiceCategory } from '../types/synk';
 import {
   AVAILABILITY_META,
   TARIFF_MODE_LABELS,
@@ -19,9 +20,11 @@ import {
   getCourierCategories,
   getInitials,
 } from '../utils/formatters';
+import { ReputationThermometer } from './ReputationThermometer';
 
 interface CourierCardProps {
   courier: CourierPublicProfile;
+  activeCategory?: ServiceCategory;
   isFavorite: boolean;
   onToggleFavorite: (courierId: string) => void;
   onViewProfile: (courierId: string) => void;
@@ -30,6 +33,7 @@ interface CourierCardProps {
 
 export const CourierCard: React.FC<CourierCardProps> = ({
   courier,
+  activeCategory,
   isFavorite,
   onToggleFavorite,
   onViewProfile,
@@ -41,13 +45,37 @@ export const CourierCard: React.FC<CourierCardProps> = ({
   const status = courier.availabilityStatus;
   const statusMeta = AVAILABILITY_META[status];
   const isOffline = status === 'offline';
-  const categoriesLabel = getCourierCategories(courier)
-    .map((id) => getCategoryInfo(id).label)
-    .filter(Boolean)
-    .join(' · ');
+  const courierCategories = getCourierCategories(courier);
+  const categoriesLabel = activeCategory
+    ? getCategoryInfo(activeCategory).label
+    : courierCategories
+        .map((id) => getCategoryInfo(id).label)
+        .filter(Boolean)
+        .join(' · ');
 
-  const visibleTariffs = showAllTariffs ? courier.tariffs : courier.tariffs.slice(0, 3);
-  const extraTariffsCount = Math.max(0, courier.tariffs.length - 3);
+  const relevantTariffs = activeCategory
+    ? courier.tariffs.filter(
+        (t) => (t.serviceCategory || courier.serviceCategory) === activeCategory
+      )
+    : courier.tariffs;
+
+  const displayStartingPrice = activeCategory
+    ? (() => {
+        const prices = relevantTariffs
+          .map((t) => t.priceArs)
+          .filter((p): p is number => typeof p === 'number' && p > 0);
+        return prices.length > 0 ? Math.min(...prices) : null;
+      })()
+    : courier.startingPriceArs;
+
+  const showTutoringInfo =
+    (activeCategory === 'clases_apoyo' ||
+      (!activeCategory && courierCategories.includes('clases_apoyo'))) &&
+    ((courier.tutoringLevels && courier.tutoringLevels.length > 0) ||
+      Boolean(courier.tutoringSubjects?.trim()));
+
+  const visibleTariffs = showAllTariffs ? relevantTariffs : relevantTariffs.slice(0, 3);
+  const extraTariffsCount = Math.max(0, relevantTariffs.length - 3);
 
   return (
     <article
@@ -150,10 +178,17 @@ export const CourierCard: React.FC<CourierCardProps> = ({
             <div className="text-right">
               <span className="text-[11px] text-slate-400">Desde </span>
               <span className="font-mono text-sm font-semibold text-[#063642] tabular-nums dark:text-white">
-                {formatARSCompact(courier.startingPriceArs)}
+                {formatARSCompact(displayStartingPrice)}
               </span>
             </div>
           </div>
+
+          <ReputationThermometer
+            compact
+            completedCount={courier.completedCount}
+            ratingAverage={courier.ratingAverage}
+            ratingCount={courier.ratingCount}
+          />
 
           {isOffline && (
             <p className="mt-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
@@ -163,14 +198,37 @@ export const CourierCard: React.FC<CourierCardProps> = ({
         </div>
       </div>
 
+      {/* Tutoring level & subjects highlight */}
+      {showTutoringInfo && (
+        <div className="mt-3 flex items-start gap-2 rounded-xl border border-[#008B8B]/25 bg-[#008B8B]/5 px-3 py-2 text-xs dark:border-[#2DD4BF]/25 dark:bg-[#13323D]/70">
+          <GraduationCap className="mt-0.5 h-4 w-4 shrink-0 text-[#008B8B] dark:text-[#2DD4BF]" />
+          <div className="min-w-0">
+            {courier.tutoringLevels && courier.tutoringLevels.length > 0 && (
+              <p className="font-bold text-[#063642] dark:text-white">
+                Niveles: {courier.tutoringLevels.join(' · ')}
+              </p>
+            )}
+            {courier.tutoringSubjects?.trim() && (
+              <p className="truncate text-[11px] text-slate-600 dark:text-slate-300">
+                Materias: {courier.tutoringSubjects}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Directly visible tariff list inside card */}
       <div className="mt-3 rounded-xl border border-[#E2E8F0]/70 bg-[#F8FAFA] p-3 dark:border-[#1E4452] dark:bg-[#13323D]/70">
         <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-          Tarifas publicadas
+          {activeCategory
+            ? `Tarifas en ${getCategoryInfo(activeCategory).label}`
+            : 'Tarifas publicadas'}
         </p>
-        {courier.tariffs.length === 0 ? (
+        {relevantTariffs.length === 0 ? (
           <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            Tarifa a convenir por chat según el trabajo o recorrido.
+            {activeCategory
+              ? `Tarifa de ${getCategoryInfo(activeCategory).label} a convenir por chat.`
+              : 'Tarifa a convenir por chat según el trabajo o recorrido.'}
           </p>
         ) : (
           <>
@@ -185,6 +243,9 @@ export const CourierCard: React.FC<CourierCardProps> = ({
                       {tariff.title}
                     </p>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      {!activeCategory && courierCategories.length > 1
+                        ? `${getCategoryInfo(tariff.serviceCategory || courier.serviceCategory).label} · `
+                        : ''}
                       {TARIFF_MODE_LABELS[tariff.mode]}
                       {tariff.zoneName ? ` · ${tariff.zoneName}` : ''}
                       {tariff.unitLabel ? ` · ${tariff.unitLabel}` : ''}

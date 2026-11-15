@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Camera,
   Check,
-  CheckCircle2,
   Pencil,
   Phone,
   Plus,
@@ -16,11 +15,14 @@ import type {
   ServiceCategory,
   TariffItem,
   TariffMode,
+  TutoringLevel,
 } from '../types/synk';
 import {
   CATEGORY_GROUPS,
   CITIES,
+  ORDERED_CATEGORIES,
   TARIFF_MODE_LABELS,
+  TUTORING_LEVELS,
   formatARS,
   getCategoryInfo,
   getCourierCategories,
@@ -46,6 +48,8 @@ interface CourierServicesViewProps {
         | 'extraServices'
         | 'serviceCategory'
         | 'serviceCategories'
+        | 'tutoringLevels'
+        | 'tutoringSubjects'
       >
     >
   ) => Promise<void>;
@@ -68,6 +72,10 @@ export const CourierServicesView: React.FC<CourierServicesViewProps> = ({
   const [selectedCategories, setSelectedCategories] = useState<ServiceCategory[]>(() =>
     getCourierCategories(courier)
   );
+  const [tutoringLevels, setTutoringLevels] = useState<TutoringLevel[]>(
+    courier.tutoringLevels || []
+  );
+  const [tutoringSubjects, setTutoringSubjects] = useState(courier.tutoringSubjects || '');
   const [vehicle, setVehicle] = useState(courier.vehicle);
   const [city, setCity] = useState<CityName>(courier.city);
   const [workZone, setWorkZone] = useState(courier.workZone);
@@ -79,6 +87,9 @@ export const CourierServicesView: React.FC<CourierServicesViewProps> = ({
 
   // Custom tariffs CRUD state
   const [editingTariffId, setEditingTariffId] = useState<string | null>(null);
+  const [tCategory, setTCategory] = useState<ServiceCategory>(
+    () => getCourierCategories(courier)[0] || 'motomandado'
+  );
   const [tTitle, setTTitle] = useState('');
   const [tMode, setTMode] = useState<TariffMode>('fixed');
   const [tPrice, setTPrice] = useState('');
@@ -87,6 +98,12 @@ export const CourierServicesView: React.FC<CourierServicesViewProps> = ({
   const [tNotes, setTNotes] = useState('');
   const [savingTariff, setSavingTariff] = useState(false);
 
+  useEffect(() => {
+    if (!selectedCategories.includes(tCategory) && selectedCategories.length > 0) {
+      setTCategory(selectedCategories[0]);
+    }
+  }, [selectedCategories, tCategory]);
+
   const toggleCategory = (catId: ServiceCategory) => {
     setSelectedCategories((prev) => {
       if (prev.includes(catId)) {
@@ -94,6 +111,12 @@ export const CourierServicesView: React.FC<CourierServicesViewProps> = ({
       }
       return [...prev, catId];
     });
+  };
+
+  const toggleTutoringLevel = (level: TutoringLevel) => {
+    setTutoringLevels((prev) =>
+      prev.includes(level) ? prev.filter((l) => l !== level) : [...prev, level]
+    );
   };
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -125,6 +148,10 @@ export const CourierServicesView: React.FC<CourierServicesViewProps> = ({
         contactPhone: contactPhone.trim(),
         serviceCategory: selectedCategories[0],
         serviceCategories: selectedCategories,
+        tutoringLevels: selectedCategories.includes('clases_apoyo') ? tutoringLevels : [],
+        tutoringSubjects: selectedCategories.includes('clases_apoyo')
+          ? tutoringSubjects.trim()
+          : '',
         vehicle: vehicle.trim(),
         city,
         workZone: workZone.trim(),
@@ -149,6 +176,7 @@ export const CourierServicesView: React.FC<CourierServicesViewProps> = ({
 
   const resetTariffForm = () => {
     setEditingTariffId(null);
+    setTCategory(selectedCategories[0] || courier.serviceCategory || 'motomandado');
     setTTitle('');
     setTMode('fixed');
     setTPrice('');
@@ -159,6 +187,10 @@ export const CourierServicesView: React.FC<CourierServicesViewProps> = ({
 
   const startEditTariff = (tariff: TariffItem) => {
     setEditingTariffId(tariff.id);
+    const tariffCat = tariff.serviceCategory || courier.serviceCategory || selectedCategories[0];
+    setTCategory(
+      selectedCategories.includes(tariffCat) ? tariffCat : selectedCategories[0] || tariffCat
+    );
     setTTitle(tariff.title);
     setTMode(tariff.mode);
     setTPrice(tariff.priceArs ? String(tariff.priceArs) : '');
@@ -172,12 +204,17 @@ export const CourierServicesView: React.FC<CourierServicesViewProps> = ({
   const handleSaveTariff = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!tTitle.trim()) return;
+    if (!tCategory) {
+      setError('Seleccioná a qué rubro pertenece esta tarifa.');
+      return;
+    }
     setSavingTariff(true);
     setError(null);
     setFeedback(null);
     try {
       await onSaveTariff({
         ...(editingTariffId ? { id: editingTariffId } : {}),
+        serviceCategory: tCategory,
         title: tTitle.trim(),
         mode: tMode,
         priceArs: tMode === 'negotiable' ? null : Number(tPrice) || null,
@@ -302,11 +339,11 @@ export const CourierServicesView: React.FC<CourierServicesViewProps> = ({
             </div>
           </div>
 
-          {/* Multi-category selector (14 Rubros grouped) */}
+          {/* Multi-category selector */}
           <div>
             <div className="flex items-center justify-between">
               <label className="block text-xs font-semibold text-[#063642] dark:text-slate-200">
-                Rubros en los que trabajás ({selectedCategories.length}/14)
+                Rubros en los que trabajás ({selectedCategories.length}/{ORDERED_CATEGORIES.length})
               </label>
               <span className="text-[11px] font-medium text-[#008B8B] dark:text-[#2DD4BF]">
                 Selección múltiple
@@ -351,6 +388,49 @@ export const CourierServicesView: React.FC<CourierServicesViewProps> = ({
               ))}
             </div>
           </div>
+
+          {selectedCategories.includes('clases_apoyo') && (
+            <div className="space-y-3 rounded-2xl border border-[#008B8B]/30 bg-[#008B8B]/5 p-3.5 dark:border-[#2DD4BF]/30 dark:bg-[#13323D]/70">
+              <div>
+                <label className="block text-xs font-bold text-[#063642] dark:text-white">
+                  Nivel educativo (Clases de Apoyo y Tutorías)
+                </label>
+                <div className="mt-2 grid grid-cols-3 gap-2">
+                  {TUTORING_LEVELS.map((level) => {
+                    const active = tutoringLevels.includes(level);
+                    return (
+                      <button
+                        key={level}
+                        type="button"
+                        onClick={() => toggleTutoringLevel(level)}
+                        aria-pressed={active}
+                        className={`h-10 rounded-xl border text-xs font-bold transition ${
+                          active
+                            ? 'border-[#008B8B] bg-[#008B8B] text-white'
+                            : 'border-[#E2E8F0] bg-white text-slate-600 dark:border-[#1E4452] dark:bg-[#0D252E] dark:text-slate-300'
+                        }`}
+                      >
+                        {level}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-[#063642] dark:text-slate-200">
+                  Materias que enseñás
+                </label>
+                <input
+                  type="text"
+                  value={tutoringSubjects}
+                  onChange={(e) => setTutoringSubjects(e.target.value)}
+                  placeholder="Ej: Matemática, Física, Inglés, Química"
+                  className="mt-1 h-11 w-full rounded-xl border border-[#E2E8F0] bg-white px-3 text-sm text-[#063642] outline-none placeholder:text-slate-400 focus:border-[#008B8B] focus:bg-white dark:border-[#1E4452] dark:bg-[#13323D] dark:text-white dark:placeholder:text-slate-500 dark:focus:border-[#2DD4BF] dark:focus:bg-[#13323D]"
+                />
+              </div>
+            </div>
+          )}
 
           <div>
             <label className="block text-xs font-semibold text-[#063642] dark:text-slate-200">
@@ -474,6 +554,24 @@ export const CourierServicesView: React.FC<CourierServicesViewProps> = ({
 
             <div>
               <label className="block text-xs font-semibold text-[#063642] dark:text-slate-200">
+                Rubro al que pertenece esta tarifa
+              </label>
+              <select
+                required
+                value={tCategory}
+                onChange={(e) => setTCategory(e.target.value as ServiceCategory)}
+                className="mt-1 h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-2.5 text-sm font-semibold text-[#063642] outline-none focus:border-[#008B8B] dark:border-[#1E4452] dark:bg-[#13323D] dark:text-white dark:focus:border-[#2DD4BF]"
+              >
+                {selectedCategories.map((catId) => (
+                  <option key={catId} value={catId}>
+                    {getCategoryInfo(catId).label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-[#063642] dark:text-slate-200">
                 Descripción del servicio o tarifa
               </label>
               <input
@@ -481,7 +579,7 @@ export const CourierServicesView: React.FC<CourierServicesViewProps> = ({
                 required
                 value={tTitle}
                 onChange={(e) => setTTitle(e.target.value)}
-                placeholder="Ej: Envío dentro del radio céntrico / Visita técnica"
+                placeholder="Ej: Corte de pasto / Envío centro / Hora de clase"
                 className="mt-1 h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3 text-sm text-[#063642] outline-none placeholder:text-slate-400 focus:border-[#008B8B] focus:bg-white dark:border-[#1E4452] dark:bg-[#13323D] dark:text-white dark:placeholder:text-slate-500 dark:focus:border-[#2DD4BF] dark:focus:bg-[#13323D]"
               />
             </div>
@@ -595,7 +693,10 @@ export const CourierServicesView: React.FC<CourierServicesViewProps> = ({
                   className="flex items-start justify-between gap-3 rounded-2xl border border-[#E2E8F0] bg-white p-3.5 dark:border-[#1E4452] dark:bg-[#0D252E]"
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-bold text-[#063642] dark:text-white">{t.title}</p>
+                    <span className="inline-block rounded-md bg-[#008B8B]/12 px-2 py-0.5 text-[10px] font-bold text-[#008B8B] dark:bg-[#008B8B]/20 dark:text-[#2DD4BF]">
+                      {getCategoryInfo(t.serviceCategory || courier.serviceCategory).label}
+                    </span>
+                    <p className="mt-1 text-sm font-bold text-[#063642] dark:text-white">{t.title}</p>
                     <p className="text-xs text-slate-500 dark:text-slate-400">
                       {TARIFF_MODE_LABELS[t.mode]}
                       {t.zoneName ? ` · ${t.zoneName}` : ''}

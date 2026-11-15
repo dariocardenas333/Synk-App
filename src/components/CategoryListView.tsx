@@ -177,6 +177,7 @@ export const CategoryListView: React.FC<CategoryListViewProps> = ({
                     <CourierCard
                       key={courier.id}
                       courier={courier}
+                      activeCategory={category}
                       isFavorite={favorites.includes(courier.id)}
                       onToggleFavorite={onToggleFavorite}
                       onViewProfile={onViewProfile}
@@ -204,6 +205,7 @@ export const CategoryListView: React.FC<CategoryListViewProps> = ({
                     <CourierCard
                       key={courier.id}
                       courier={courier}
+                      activeCategory={category}
                       isFavorite={favorites.includes(courier.id)}
                       onToggleFavorite={onToggleFavorite}
                       onViewProfile={onViewProfile}
@@ -231,6 +233,7 @@ export const CategoryListView: React.FC<CategoryListViewProps> = ({
                     <CourierCard
                       key={courier.id}
                       courier={courier}
+                      activeCategory={category}
                       isFavorite={favorites.includes(courier.id)}
                       onToggleFavorite={onToggleFavorite}
                       onViewProfile={onViewProfile}

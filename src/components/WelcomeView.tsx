@@ -99,7 +99,7 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
             Todo lo que necesitás resolver hoy, en tu ciudad.
           </h1>
           <p className="mt-3 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
-            Conectá directo con prestadores independientes en Trelew y Chubut, sin intermediarios
+            Conectá directo con prestadores independientes en Chubut, sin intermediarios
             ni comisiones.
           </p>
         </div>

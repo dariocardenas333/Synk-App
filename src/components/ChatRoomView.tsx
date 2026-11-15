@@ -13,8 +13,16 @@ import type {
   Conversation,
   CourierPublicProfile,
   CurrentSession,
+  ServiceCategory,
 } from '../types/synk';
-import { AVAILABILITY_META, formatARS, formatDateAR, formatTimeAR } from '../utils/formatters';
+import {
+  AVAILABILITY_META,
+  formatARS,
+  formatDateAR,
+  formatTimeAR,
+  getCategoryInfo,
+  getCourierCategories,
+} from '../utils/formatters';
 
 interface ChatRoomViewProps {
   session: CurrentSession;
@@ -31,6 +39,7 @@ interface ChatRoomViewProps {
     description: string;
     agreedPriceArs: number | null;
     modality: 'puntual' | 'recurrente';
+    serviceCategory?: ServiceCategory;
   }) => Promise<void>;
   onAcceptContract: (contractId: string) => Promise<void>;
   onCompleteContract: (contractId: string) => Promise<void>;
@@ -58,9 +67,13 @@ export const ChatRoomView: React.FC<ChatRoomViewProps> = ({
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [showProposalForm, setShowProposalForm] = useState(false);
+  const courierCategories = courier ? getCourierCategories(courier) : [];
   const [proposalDesc, setProposalDesc] = useState('');
   const [proposalPrice, setProposalPrice] = useState('');
   const [proposalModality, setProposalModality] = useState<'puntual' | 'recurrente'>('puntual');
+  const [proposalCategory, setProposalCategory] = useState<ServiceCategory>(
+    courierCategories[0] || conversation.courierCategory || 'motomandado'
+  );
   const [actionError, setActionError] = useState<string | null>(null);
   const [isOnline, setIsOnline] = useState(
     typeof navigator !== 'undefined' ? navigator.onLine : true
@@ -188,6 +201,7 @@ export const ChatRoomView: React.FC<ChatRoomViewProps> = ({
         description: proposalDesc,
         agreedPriceArs: numPrice && numPrice > 0 ? numPrice : null,
         modality: proposalModality,
+        serviceCategory: proposalCategory,
       });
       setProposalDesc('');
       setProposalPrice('');
@@ -368,6 +382,24 @@ export const ChatRoomView: React.FC<ChatRoomViewProps> = ({
           <p className="font-display text-sm font-bold text-[#063642] dark:text-white">
             Proponer servicio a {conversation.courierName}
           </p>
+          {courierCategories.length > 1 && (
+            <div>
+              <label className="block text-xs font-semibold text-[#063642] dark:text-slate-200">
+                Rubro del servicio
+              </label>
+              <select
+                value={proposalCategory}
+                onChange={(e) => setProposalCategory(e.target.value as ServiceCategory)}
+                className="mt-1 h-10 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-2.5 text-xs text-[#063642] outline-none focus:border-[#008B8B] dark:border-[#1E4452] dark:bg-[#13323D] dark:text-slate-100"
+              >
+                {courierCategories.map((catId) => (
+                  <option key={catId} value={catId}>
+                    {getCategoryInfo(catId).label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <div>
             <label className="block text-xs font-semibold text-[#063642] dark:text-slate-200">
               Detalle del servicio o envío

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowUpDown, RotateCcw, Search, SlidersHorizontal } from 'lucide-react';
 import type { AvailabilityStatus, CityName, CourierPublicProfile, ServiceCategory } from '../types/synk';
 import {
@@ -40,12 +40,30 @@ export const SearchView: React.FC<SearchViewProps> = ({
   const [minRating, setMinRating] = useState<number>(0);
   const [sortBy, setSortBy] = useState<SortMode>('lowest_price');
 
+  useEffect(() => {
+    setCity(defaultCity);
+    setBarrio('');
+  }, [defaultCity]);
+
   const neighborhoodOptions = useMemo(() => {
     if (city === 'all') {
-      return Array.from(new Set(Object.values(CITY_NEIGHBORHOODS).flat()));
+      return Array.from(new Set(Object.values(CITY_NEIGHBORHOODS).flat())).filter(
+        (n): n is string => Boolean(n)
+      );
     }
     return CITY_NEIGHBORHOODS[city] || [];
   }, [city]);
+
+  const getEffectiveStartingPrice = (c: CourierPublicProfile): number | null => {
+    if (category === 'all') return c.startingPriceArs;
+    const catTariffs = c.tariffs.filter(
+      (t) => (t.serviceCategory || c.serviceCategory) === category
+    );
+    const prices = catTariffs
+      .map((t) => t.priceArs)
+      .filter((p): p is number => typeof p === 'number' && p > 0);
+    return prices.length > 0 ? Math.min(...prices) : null;
+  };
 
   const filtered = useMemo(() => {
     const q = queryText.trim().toLowerCase();
@@ -66,7 +84,8 @@ export const SearchView: React.FC<SearchViewProps> = ({
       }
 
       if (maxP !== null && !Number.isNaN(maxP) && maxP > 0) {
-        if (c.startingPriceArs === null || c.startingPriceArs > maxP) return false;
+        const effectivePrice = getEffectiveStartingPrice(c);
+        if (effectivePrice === null || effectivePrice > maxP) return false;
       }
 
       if (minRating > 0 && c.ratingAverage < minRating) return false;
@@ -84,6 +103,8 @@ export const SearchView: React.FC<SearchViewProps> = ({
           c.workZone,
           c.city,
           c.description,
+          c.tutoringSubjects || '',
+          ...(c.tutoringLevels || []),
           ...c.coverageZones,
           catKeywords,
         ]
@@ -98,8 +119,8 @@ export const SearchView: React.FC<SearchViewProps> = ({
     // Client visibility sort strictly by price, rating, or completed count
     return list.sort((a, bItem) => {
       if (sortBy === 'lowest_price') {
-        const pa = a.startingPriceArs ?? Number.MAX_SAFE_INTEGER;
-        const pb = bItem.startingPriceArs ?? Number.MAX_SAFE_INTEGER;
+        const pa = getEffectiveStartingPrice(a) ?? Number.MAX_SAFE_INTEGER;
+        const pb = getEffectiveStartingPrice(bItem) ?? Number.MAX_SAFE_INTEGER;
         return pa - pb;
       }
       if (sortBy === 'best_rating') {
@@ -167,7 +188,7 @@ export const SearchView: React.FC<SearchViewProps> = ({
                   onChange={(e) => setCategory(e.target.value as ServiceCategory | 'all')}
                   className="mt-1 h-10 w-full rounded-lg border border-[#E2E8F0] bg-white px-2.5 text-xs font-medium text-[#063642] outline-none focus:border-[#008B8B] dark:border-[#1E4452] dark:bg-[#0D252E] dark:text-slate-100"
                 >
-                  <option value="all">Todos los rubros (14)</option>
+                  <option value="all">Todos los rubros ({ORDERED_CATEGORIES.length})</option>
                   {ORDERED_CATEGORIES.map((catId) => (
                     <option key={catId} value={catId}>
                       {CATEGORY_INFO[catId].label}
@@ -319,6 +340,7 @@ export const SearchView: React.FC<SearchViewProps> = ({
               <CourierCard
                 key={courier.id}
                 courier={courier}
+                activeCategory={category !== 'all' ? category : undefined}
                 isFavorite={favorites.includes(courier.id)}
                 onToggleFavorite={onToggleFavorite}
                 onViewProfile={onViewProfile}

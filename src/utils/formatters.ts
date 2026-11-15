@@ -7,17 +7,27 @@ import type {
   TariffMode,
 } from '../types/synk';
 
+function normalizeLegacyCategory(cat: string): ServiceCategory | null {
+  if (cat === 'limpieza_soporte_pc') return 'limpieza_domestica';
+  return CATEGORY_INFO[cat as ServiceCategory] ? (cat as ServiceCategory) : null;
+}
+
 export function getCourierCategories(
   courier: Pick<CourierPublicProfile, 'serviceCategory' | 'serviceCategories'>
 ): ServiceCategory[] {
   if (Array.isArray(courier.serviceCategories) && courier.serviceCategories.length > 0) {
-    return courier.serviceCategories.filter((c) => Boolean(CATEGORY_INFO[c]));
+    const mapped = courier.serviceCategories
+      .map((c) => normalizeLegacyCategory(c))
+      .filter((c): c is ServiceCategory => Boolean(c));
+    if (mapped.length > 0) return Array.from(new Set(mapped));
   }
-  return CATEGORY_INFO[courier.serviceCategory] ? [courier.serviceCategory] : ['motomandado'];
+  const fallback = normalizeLegacyCategory(courier.serviceCategory);
+  return fallback ? [fallback] : ['motomandado'];
 }
 
 export function getCategoryInfo(category: ServiceCategory | string) {
-  return CATEGORY_INFO[category as ServiceCategory] || CATEGORY_INFO.motomandado;
+  const normalized = normalizeLegacyCategory(category);
+  return normalized ? CATEGORY_INFO[normalized] : CATEGORY_INFO.motomandado;
 }
 
 export function computeCourierPoints(
@@ -33,14 +43,118 @@ export function computeCourierPoints(
   return derived;
 }
 
+export const TUTORING_LEVELS = ['Primaria', 'Secundaria', 'Universidad'] as const;
+
+export interface ReputationMeta {
+  level: 0 | 1 | 2 | 3 | 4 | 5;
+  label: string;
+  colorHex: string;
+  badgeClass: string;
+}
+
+export function computeReputationLevel(
+  completedCount: number,
+  ratingAverage: number,
+  ratingCount: number
+): ReputationMeta {
+  if (completedCount === 0 && ratingCount === 0) {
+    return {
+      level: 0,
+      label: 'Nuevo sin historial',
+      colorHex: '#94A3B8',
+      badgeClass:
+        'bg-slate-100 text-slate-600 dark:bg-[#13323D] dark:text-slate-300',
+    };
+  }
+
+  if (ratingCount > 0 && ratingAverage < 2.8) {
+    return {
+      level: 1,
+      label: 'En observación',
+      colorHex: '#EF4444',
+      badgeClass:
+        'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300',
+    };
+  }
+
+  if ((ratingCount > 0 && ratingAverage < 3.6) || (ratingCount === 0 && completedCount <= 2)) {
+    return {
+      level: 2,
+      label: 'En desarrollo',
+      colorHex: '#F97316',
+      badgeClass:
+        'bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300',
+    };
+  }
+
+  if ((ratingCount > 0 && ratingAverage < 4.2) || (ratingCount === 0 && completedCount < 5)) {
+    return {
+      level: 3,
+      label: 'Buen desempeño',
+      colorHex: '#F5A623',
+      badgeClass:
+        'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
+    };
+  }
+
+  if (completedCount >= 5 && ratingAverage >= 4.7) {
+    return {
+      level: 5,
+      label: 'Excelente reputación',
+      colorHex: '#16A34A',
+      badgeClass:
+        'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
+    };
+  }
+
+  if (ratingCount >= 3 && ratingAverage >= 4.8) {
+    return {
+      level: 5,
+      label: 'Excelente reputación',
+      colorHex: '#16A34A',
+      badgeClass:
+        'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
+    };
+  }
+
+  return {
+    level: 4,
+    label: 'Confiable',
+    colorHex: '#4ADE80',
+    badgeClass:
+      'bg-lime-50 text-lime-700 dark:bg-lime-950/40 dark:text-lime-300',
+  };
+}
+
 export const CITIES: CityName[] = [
   'Trelew',
   'Rawson',
   'Puerto Madryn',
   'Comodoro Rivadavia',
+  'Rada Tilly',
+  'Esquel',
+  'Trevelin',
+  'Gaiman',
+  'Dolavon',
+  '28 de Julio',
+  'Sarmiento',
+  'Lago Puelo',
+  'El Hoyo',
+  'Epuyén',
+  'El Maitén',
+  'Cholila',
+  'Camarones',
+  'Río Mayo',
+  'Gobernador Costa',
+  'José de San Martín',
+  'Alto Río Senguer',
+  'Paso de Indios',
+  'Gastre',
+  'Gan Gan',
+  'Telsen',
 ];
 
-export const CITY_NEIGHBORHOODS: Record<CityName, string[]> = {
+export const CITY_NEIGHBORHOODS: Partial<Record<CityName, string[]>> = {
   Trelew: [
     'Centro',
     'Pueblo de Luis',
@@ -69,13 +183,16 @@ export const CITY_NEIGHBORHOODS: Record<CityName, string[]> = {
   ],
   'Comodoro Rivadavia': [
     'Centro',
-    'Rada Tilly',
     'Km 3 / General Mosconi',
     'Km 5',
     'Km 8',
     'Pueyrredón',
     'Roca',
   ],
+  'Rada Tilly': ['Centro', 'Mirador', 'Tierra Joven', 'Altos de la Villa'],
+  Esquel: ['Centro', 'Buenos Aires', 'Badén', 'Sargento Cabral', '28 de Junio'],
+  Trevelin: ['Centro', 'Malvinas', 'Aldea Escolar'],
+  Gaiman: ['Centro', 'Bryn Gwyn', 'Villa Inés'],
 };
 
 export interface CategoryMeta {
@@ -84,7 +201,10 @@ export interface CategoryMeta {
   shortDesc: string;
   vehicleExamples: string;
   keywords: string[];
-  group: 'Envíos, Traslados y Vehículos' | 'Hogar, Terrenos y Oficios' | 'Cuidado, Limpieza y Tecnología';
+  group:
+    | 'Envíos, Traslados y Vehículos'
+    | 'Hogar, Terrenos y Oficios'
+    | 'Cuidado, Educación, Tecnología y Eventos';
 }
 
 export const CATEGORY_INFO: Record<ServiceCategory, CategoryMeta> = {
@@ -184,21 +304,74 @@ export const CATEGORY_INFO: Record<ServiceCategory, CategoryMeta> = {
     keywords: ['aire', 'climatización', 'heladera', 'lavarropas', 'electrodomésticos', 'refrigeración', 'técnico'],
     group: 'Hogar, Terrenos y Oficios',
   },
+  reparacion_electrodomesticos: {
+    id: 'reparacion_electrodomesticos',
+    label: 'Reparación de Electrodomésticos',
+    shortDesc: 'Service técnico de lavarropas, heladeras, cocinas y pequeños equipos',
+    vehicleExamples: 'Herramental técnico / Repuestos a domicilio',
+    keywords: ['reparación', 'electrodomésticos', 'lavarropas', 'heladera', 'microondas', 'cocina', 'service'],
+    group: 'Hogar, Terrenos y Oficios',
+  },
   cuidado_mascotas: {
     id: 'cuidado_mascotas',
     label: 'Cuidado y Paseo de Mascotas',
     shortDesc: 'Paseos diarios, cuidado a domicilio y traslados',
     vehicleExamples: 'Paseador / Cuidador con experiencia',
     keywords: ['mascotas', 'perro', 'perros', 'gato', 'paseador', 'paseo', 'cuidado'],
-    group: 'Cuidado, Limpieza y Tecnología',
+    group: 'Cuidado, Educación, Tecnología y Eventos',
   },
-  limpieza_soporte_pc: {
-    id: 'limpieza_soporte_pc',
-    label: 'Limpieza por Hora y Soporte Técnico PC',
-    shortDesc: 'Limpieza de hogares/oficinas y reparación de PC/notebooks',
-    vehicleExamples: 'Insumos propios / Laboratorio técnico móvil',
-    keywords: ['limpieza', 'hora', 'hogar', 'oficina', 'pc', 'computadora', 'notebook', 'soporte', 'técnico', 'informática'],
-    group: 'Cuidado, Limpieza y Tecnología',
+  ninera: {
+    id: 'ninera',
+    label: 'Niñera',
+    shortDesc: 'Cuidado infantil responsable a domicilio, por hora o por turno',
+    vehicleExamples: 'Cuidado a domicilio / Referencias comprobables',
+    keywords: ['niñera', 'niños', 'bebé', 'cuidado', 'infantil', 'babysitter', 'chicos'],
+    group: 'Cuidado, Educación, Tecnología y Eventos',
+  },
+  limpieza_domestica: {
+    id: 'limpieza_domestica',
+    label: 'Limpieza Doméstica',
+    shortDesc: 'Limpieza integral por hora de hogares, departamentos y oficinas',
+    vehicleExamples: 'Insumos propios / Servicio por hora',
+    keywords: ['limpieza', 'doméstica', 'casa', 'hogar', 'oficina', 'hora', 'depto'],
+    group: 'Cuidado, Educación, Tecnología y Eventos',
+  },
+  soporte_tecnico_pc: {
+    id: 'soporte_tecnico_pc',
+    label: 'Soporte Técnico PC',
+    shortDesc: 'Reparación de PC, notebooks, formateo, redes y optimización',
+    vehicleExamples: 'Laboratorio móvil / Asistencia a domicilio',
+    keywords: ['soporte', 'técnico', 'pc', 'computadora', 'notebook', 'informática', 'formateo', 'wifi'],
+    group: 'Cuidado, Educación, Tecnología y Eventos',
+  },
+  fotografia: {
+    id: 'fotografia',
+    label: 'Fotografía',
+    shortDesc: 'Cobertura de eventos, retratos, productos y sesiones profesionales',
+    vehicleExamples: 'Cámara profesional / Iluminación portátil',
+    keywords: ['fotografía', 'foto', 'fotógrafo', 'evento', 'sesión', 'retrato', 'producto', 'cumpleaños'],
+    group: 'Cuidado, Educación, Tecnología y Eventos',
+  },
+  clases_apoyo: {
+    id: 'clases_apoyo',
+    label: 'Clases de Apoyo y Tutorías',
+    shortDesc: 'Apoyo escolar, materias universitarias, idiomas y preparación de exámenes',
+    vehicleExamples: 'Presencial a domicilio o modalidad virtual',
+    keywords: [
+      'clases',
+      'apoyo',
+      'tutoría',
+      'tutorias',
+      'profesor',
+      'profesora',
+      'particular',
+      'matemática',
+      'inglés',
+      'primaria',
+      'secundaria',
+      'universidad',
+    ],
+    group: 'Cuidado, Educación, Tecnología y Eventos',
   },
 };
 
@@ -222,8 +395,13 @@ export const ORDERED_CATEGORIES: ServiceCategory[] = [
   'plomeria_gas',
   'electricidad',
   'electrodomesticos_clima',
+  'reparacion_electrodomesticos',
   'cuidado_mascotas',
-  'limpieza_soporte_pc',
+  'ninera',
+  'limpieza_domestica',
+  'soporte_tecnico_pc',
+  'fotografia',
+  'clases_apoyo',
 ];
 
 export const CATEGORY_GROUPS: Array<{
@@ -244,11 +422,19 @@ export const CATEGORY_GROUPS: Array<{
       'plomeria_gas',
       'electricidad',
       'electrodomesticos_clima',
+      'reparacion_electrodomesticos',
     ],
   },
   {
-    title: 'Cuidado, Limpieza y Tecnología',
-    items: ['cuidado_mascotas', 'limpieza_soporte_pc'],
+    title: 'Cuidado, Educación, Tecnología y Eventos',
+    items: [
+      'cuidado_mascotas',
+      'ninera',
+      'limpieza_domestica',
+      'soporte_tecnico_pc',
+      'fotografia',
+      'clases_apoyo',
+    ],
   },
 ];
 

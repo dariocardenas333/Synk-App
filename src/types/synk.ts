@@ -11,12 +11,44 @@ export type ServiceCategory =
   | 'plomeria_gas'
   | 'electricidad'
   | 'electrodomesticos_clima'
+  | 'reparacion_electrodomesticos'
   | 'cuidado_mascotas'
-  | 'limpieza_soporte_pc';
+  | 'ninera'
+  | 'limpieza_domestica'
+  | 'soporte_tecnico_pc'
+  | 'fotografia'
+  | 'clases_apoyo';
+
+export type TutoringLevel = 'Primaria' | 'Secundaria' | 'Universidad';
 
 export type AvailabilityStatus = 'available' | 'busy' | 'offline';
 
-export type CityName = 'Trelew' | 'Rawson' | 'Puerto Madryn' | 'Comodoro Rivadavia';
+export type CityName =
+  | 'Trelew'
+  | 'Rawson'
+  | 'Puerto Madryn'
+  | 'Comodoro Rivadavia'
+  | 'Rada Tilly'
+  | 'Esquel'
+  | 'Trevelin'
+  | 'Gaiman'
+  | 'Dolavon'
+  | '28 de Julio'
+  | 'Sarmiento'
+  | 'Lago Puelo'
+  | 'El Hoyo'
+  | 'Epuyén'
+  | 'El Maitén'
+  | 'Cholila'
+  | 'Camarones'
+  | 'Río Mayo'
+  | 'Gobernador Costa'
+  | 'José de San Martín'
+  | 'Alto Río Senguer'
+  | 'Paso de Indios'
+  | 'Gastre'
+  | 'Gan Gan'
+  | 'Telsen';
 
 export type TariffMode = 'fixed' | 'distance' | 'zone' | 'negotiable';
 
@@ -27,6 +59,7 @@ export type ContractStatus = 'proposed' | 'accepted' | 'completed' | 'cancelled'
 export interface TariffItem {
   id: string;
   courierId: string;
+  serviceCategory?: ServiceCategory | null;
   title: string;
   mode: TariffMode;
   priceArs: number | null;
@@ -42,6 +75,8 @@ export interface CourierPublicProfile {
   contactPhone?: string | null;
   serviceCategory: ServiceCategory;
   serviceCategories?: ServiceCategory[];
+  tutoringLevels?: TutoringLevel[];
+  tutoringSubjects?: string;
   vehicle: string;
   city: CityName;
   workZone: string;
@@ -156,6 +191,7 @@ export interface RatingRecord {
   courierId: string;
   clientId: string;
   clientName: string;
+  serviceCategory?: ServiceCategory;
   score: number;
   comment: string;
   createdAt: string;
@@ -182,6 +218,7 @@ export interface CurrentSession {
   displayName: string;
   city: CityName;
   isAnonymous: boolean;
+  emailVerified?: boolean;
   recoveryCode?: string;
   email?: string;
   phone?: string;

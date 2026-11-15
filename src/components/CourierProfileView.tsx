@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   ArrowLeft,
   CheckCircle2,
   Clock,
   Eye,
+  GraduationCap,
   Heart,
   MapPin,
   MessageSquare,
@@ -13,7 +14,7 @@ import {
   ShieldAlert,
   Star,
 } from 'lucide-react';
-import type { CourierPublicProfile, RatingRecord } from '../types/synk';
+import type { CourierPublicProfile, RatingRecord, ServiceCategory, TariffItem } from '../types/synk';
 import {
   AVAILABILITY_META,
   TARIFF_MODE_LABELS,
@@ -24,6 +25,7 @@ import {
   getInitials,
 } from '../utils/formatters';
 import { CategoryIcon } from './CategoryIcon';
+import { ReputationThermometer } from './ReputationThermometer';
 
 interface CourierProfileViewProps {
   courier: CourierPublicProfile;
@@ -52,6 +54,27 @@ export const CourierProfileView: React.FC<CourierProfileViewProps> = ({
   const status = courier.availabilityStatus;
   const statusMeta = AVAILABILITY_META[status];
   const categories = getCourierCategories(courier);
+
+  const groupedTariffs = useMemo(() => {
+    const map = new Map<ServiceCategory, TariffItem[]>();
+    courier.tariffs.forEach((t) => {
+      const cat = (t.serviceCategory || courier.serviceCategory || 'motomandado') as ServiceCategory;
+      const list = map.get(cat) || [];
+      list.push(t);
+      map.set(cat, list);
+    });
+    return Array.from(map.entries());
+  }, [courier.tariffs, courier.serviceCategory]);
+
+  const sortedRatings = useMemo(
+    () => [...ratings].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    [ratings]
+  );
+
+  const hasTutoringDetails =
+    categories.includes('clases_apoyo') &&
+    ((courier.tutoringLevels && courier.tutoringLevels.length > 0) ||
+      Boolean(courier.tutoringSubjects?.trim()));
 
   return (
     <div className="bg-[#F8FAFA] pb-28 dark:bg-[#07181E]">
@@ -174,6 +197,13 @@ export const CourierProfileView: React.FC<CourierProfileViewProps> = ({
               <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">Tarifa base</p>
             </div>
           </div>
+
+          {/* Mercado Libre-style Reputation Thermometer */}
+          <ReputationThermometer
+            completedCount={courier.completedCount}
+            ratingAverage={courier.ratingAverage}
+            ratingCount={courier.ratingCount}
+          />
         </div>
 
         {status === 'busy' && (
@@ -194,6 +224,42 @@ export const CourierProfileView: React.FC<CourierProfileViewProps> = ({
               prestador disponible para atención inmediata.
             </p>
           </div>
+        )}
+
+        {/* Tutoring Details Block */}
+        {hasTutoringDetails && (
+          <section className="mt-5 rounded-3xl border border-[#008B8B]/30 bg-white p-4 dark:border-[#2DD4BF]/30 dark:bg-[#0D252E]">
+            <div className="flex items-center gap-2">
+              <GraduationCap className="h-5 w-5 text-[#008B8B] dark:text-[#2DD4BF]" />
+              <h2 className="font-display text-sm font-bold text-[#063642] dark:text-white">
+                Clases de Apoyo y Tutorías
+              </h2>
+            </div>
+
+            {courier.tutoringLevels && courier.tutoringLevels.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {courier.tutoringLevels.map((lvl) => (
+                  <span
+                    key={lvl}
+                    className="rounded-lg bg-[#008B8B]/12 px-2.5 py-1 text-xs font-bold text-[#008B8B] dark:bg-[#008B8B]/20 dark:text-[#2DD4BF]"
+                  >
+                    {lvl}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {courier.tutoringSubjects?.trim() && (
+              <div className="mt-2.5">
+                <p className="text-xs font-bold text-[#063642] dark:text-slate-200">
+                  Materias que enseña
+                </p>
+                <p className="mt-0.5 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+                  {courier.tutoringSubjects}
+                </p>
+              </div>
+            )}
+          </section>
         )}
 
         {/* Description */}
@@ -250,11 +316,11 @@ export const CourierProfileView: React.FC<CourierProfileViewProps> = ({
           </div>
         </section>
 
-        {/* Tariffs */}
+        {/* Tariffs grouped by category */}
         <section className="mt-5">
           <div className="flex items-baseline justify-between">
             <h2 className="font-display text-sm font-bold text-[#063642] dark:text-white">
-              Tarifas
+              Tarifas por rubro
             </h2>
             <span className="text-xs text-slate-400">Expresadas en ARS</span>
           </div>
@@ -264,26 +330,38 @@ export const CourierProfileView: React.FC<CourierProfileViewProps> = ({
               Tarifas a convenir directamente con el prestador.
             </p>
           ) : (
-            <div className="mt-3 space-y-2.5">
-              {courier.tariffs.map((t) => (
-                <div
-                  key={t.id}
-                  className="flex items-start justify-between gap-3 rounded-2xl border border-[#E2E8F0] bg-white p-3.5 dark:border-[#1E4452] dark:bg-[#0D252E]"
-                >
-                  <div className="min-w-0">
-                    <p className="text-sm font-bold text-[#063642] dark:text-white">{t.title}</p>
-                    <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                      {TARIFF_MODE_LABELS[t.mode]}
-                      {t.zoneName ? ` · ${t.zoneName}` : ''}
-                      {t.unitLabel ? ` · ${t.unitLabel}` : ''}
-                    </p>
-                    {t.notes && (
-                      <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">{t.notes}</p>
-                    )}
+            <div className="mt-3 space-y-4">
+              {groupedTariffs.map(([catId, items]) => (
+                <div key={catId} className="space-y-2">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-[#008B8B] dark:text-[#2DD4BF]">
+                    <CategoryIcon category={catId} className="h-3.5 w-3.5" />
+                    <span>{getCategoryInfo(catId).label}</span>
                   </div>
-                  <span className="shrink-0 font-mono text-sm font-bold text-[#063642] tabular-nums dark:text-white">
-                    {formatARS(t.priceArs)}
-                  </span>
+                  <div className="space-y-2">
+                    {items.map((t) => (
+                      <div
+                        key={t.id}
+                        className="flex items-start justify-between gap-3 rounded-2xl border border-[#E2E8F0] bg-white p-3.5 dark:border-[#1E4452] dark:bg-[#0D252E]"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-[#063642] dark:text-white">{t.title}</p>
+                          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                            {TARIFF_MODE_LABELS[t.mode]}
+                            {t.zoneName ? ` · ${t.zoneName}` : ''}
+                            {t.unitLabel ? ` · ${t.unitLabel}` : ''}
+                          </p>
+                          {t.notes && (
+                            <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+                              {t.notes}
+                            </p>
+                          )}
+                        </div>
+                        <span className="shrink-0 font-mono text-sm font-bold text-[#063642] tabular-nums dark:text-white">
+                          {formatARS(t.priceArs)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>
@@ -312,31 +390,52 @@ export const CourierProfileView: React.FC<CourierProfileViewProps> = ({
 
         {/* Verified Reviews */}
         <section className="mt-5">
-          <h2 className="font-display text-sm font-bold text-[#063642] dark:text-white">
-            Valoraciones de trabajos completados
-          </h2>
-          {ratings.length === 0 ? (
-            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+          <div className="flex items-baseline justify-between">
+            <h2 className="font-display text-sm font-bold text-[#063642] dark:text-white">
+              Opiniones de clientes ({sortedRatings.length})
+            </h2>
+            <span className="text-[11px] font-medium text-slate-400">Reseñas verificadas</span>
+          </div>
+          {sortedRatings.length === 0 ? (
+            <p className="mt-2 rounded-2xl border border-[#E2E8F0] bg-white p-4 text-xs text-slate-500 dark:border-[#1E4452] dark:bg-[#0D252E] dark:text-slate-400">
               Todavía no tiene reseñas registradas.
             </p>
           ) : (
             <div className="mt-3 space-y-3">
-              {ratings.map((r) => (
+              {sortedRatings.map((r) => (
                 <div
                   key={r.contractId}
                   className="rounded-2xl border border-[#E2E8F0] bg-white p-3.5 dark:border-[#1E4452] dark:bg-[#0D252E]"
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-bold text-[#063642] dark:text-white">
-                      {r.clientName}
-                    </span>
-                    <span className="inline-flex items-center gap-1 text-xs font-bold text-[#063642] tabular-nums dark:text-white">
-                      <Star className="h-3.5 w-3.5 fill-[#F5A623] text-[#F5A623]" />
-                      {r.score.toFixed(1)}
-                    </span>
+                    <div className="min-w-0">
+                      <span className="text-xs font-bold text-[#063642] dark:text-white">
+                        {r.clientName}
+                      </span>
+                      {r.serviceCategory && (
+                        <span className="ml-2 inline-block rounded bg-[#008B8B]/10 px-1.5 py-0.5 text-[10px] font-semibold text-[#008B8B] dark:bg-[#008B8B]/20 dark:text-[#2DD4BF]">
+                          {getCategoryInfo(r.serviceCategory).label}
+                        </span>
+                      )}
+                    </div>
+                    <div
+                      className="flex shrink-0 items-center gap-0.5"
+                      aria-label={`${r.score} de 5 estrellas`}
+                    >
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <Star
+                          key={star}
+                          className={`h-3.5 w-3.5 ${
+                            star <= r.score
+                              ? 'fill-[#F5A623] text-[#F5A623]'
+                              : 'text-slate-200 dark:text-slate-600'
+                          }`}
+                        />
+                      ))}
+                    </div>
                   </div>
                   {r.comment && (
-                    <p className="mt-1.5 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+                    <p className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
                       {r.comment}
                     </p>
                   )}

@@ -4,8 +4,14 @@ import type {
   CourierRegistrationInput,
   MerchantRegistrationInput,
 } from '../services/synkStore';
-import type { CityName, ServiceCategory } from '../types/synk';
-import { CATEGORY_GROUPS, CITIES, MERCHANT_CATEGORIES, getCategoryInfo } from '../utils/formatters';
+import type { CityName, ServiceCategory, TutoringLevel } from '../types/synk';
+import {
+  CATEGORY_GROUPS,
+  CITIES,
+  MERCHANT_CATEGORIES,
+  TUTORING_LEVELS,
+  getCategoryInfo,
+} from '../utils/formatters';
 
 interface AuthSheetProps {
   initialType: 'courier' | 'merchant';
@@ -51,6 +57,8 @@ export const AuthSheet: React.FC<AuthSheetProps> = ({
   const [cPassword, setCPassword] = useState('');
   const [showCourierPassword, setShowCourierPassword] = useState(false);
   const [cCategories, setCCategories] = useState<ServiceCategory[]>(['motomandado']);
+  const [cTutoringLevels, setCTutoringLevels] = useState<TutoringLevel[]>([]);
+  const [cTutoringSubjects, setCTutoringSubjects] = useState('');
   const [cVehicle, setCVehicle] = useState('');
   const [cCity, setCCity] = useState<CityName>(defaultCity);
   const [cWorkZone, setCWorkZone] = useState('');
@@ -74,6 +82,12 @@ export const AuthSheet: React.FC<AuthSheetProps> = ({
       }
       return [...prev, catId];
     });
+  };
+
+  const toggleTutoringLevel = (level: TutoringLevel) => {
+    setCTutoringLevels((prev) =>
+      prev.includes(level) ? prev.filter((l) => l !== level) : [...prev, level]
+    );
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -136,6 +150,8 @@ export const AuthSheet: React.FC<AuthSheetProps> = ({
         password: cPassword,
         serviceCategory: cCategories[0],
         serviceCategories: cCategories,
+        tutoringLevels: cCategories.includes('clases_apoyo') ? cTutoringLevels : [],
+        tutoringSubjects: cCategories.includes('clases_apoyo') ? cTutoringSubjects : '',
         vehicle: cVehicle,
         city: cCity,
         workZone: cWorkZone,
@@ -553,6 +569,49 @@ export const AuthSheet: React.FC<AuthSheetProps> = ({
                 ))}
               </div>
             </div>
+
+            {cCategories.includes('clases_apoyo') && (
+              <div className="space-y-3 rounded-2xl border border-[#008B8B]/30 bg-[#008B8B]/5 p-3.5 dark:border-[#2DD4BF]/30 dark:bg-[#13323D]/70">
+                <div>
+                  <label className="block text-xs font-bold text-[#063642] dark:text-white">
+                    Nivel educativo que enseñás
+                  </label>
+                  <div className="mt-2 grid grid-cols-3 gap-2">
+                    {TUTORING_LEVELS.map((level) => {
+                      const active = cTutoringLevels.includes(level);
+                      return (
+                        <button
+                          key={level}
+                          type="button"
+                          onClick={() => toggleTutoringLevel(level)}
+                          aria-pressed={active}
+                          className={`h-10 rounded-xl border text-xs font-bold transition ${
+                            active
+                              ? 'border-[#008B8B] bg-[#008B8B] text-white'
+                              : 'border-[#E2E8F0] bg-white text-slate-600 dark:border-[#1E4452] dark:bg-[#0D252E] dark:text-slate-300'
+                          }`}
+                        >
+                          {level}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-[#063642] dark:text-slate-200">
+                    Materias que enseñás
+                  </label>
+                  <input
+                    type="text"
+                    value={cTutoringSubjects}
+                    onChange={(e) => setCTutoringSubjects(e.target.value)}
+                    placeholder="Ej: Matemática, Física, Inglés, Lengua"
+                    className="mt-1 h-11 w-full rounded-xl border border-[#E2E8F0] bg-white px-3 text-sm text-[#063642] outline-none placeholder:text-slate-400 focus:border-[#008B8B] focus:bg-white dark:border-[#1E4452] dark:bg-[#13323D] dark:text-white dark:placeholder:text-slate-500 dark:focus:border-[#2DD4BF] dark:focus:bg-[#13323D]"
+                  />
+                </div>
+              </div>
+            )}
 
             <div>
               <label className="block text-xs font-semibold text-[#063642] dark:text-slate-200">

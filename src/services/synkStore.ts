@@ -1,6 +1,7 @@
 import {
   createUserWithEmailAndPassword,
   onAuthStateChanged,
+  sendEmailVerification,
   sendPasswordResetEmail,
   signInAnonymously,
   signInWithEmailAndPassword,
@@ -38,6 +39,7 @@ import type {
   RatingRecord,
   ServiceCategory,
   TariffItem,
+  TutoringLevel,
 } from '../types/synk';
 import {
   computeCourierPoints,
@@ -93,6 +95,8 @@ export interface CourierRegistrationInput {
   password: string;
   serviceCategory: ServiceCategory;
   serviceCategories?: ServiceCategory[];
+  tutoringLevels?: TutoringLevel[];
+  tutoringSubjects?: string;
   vehicle: string;
   city: CityName;
   workZone: string;
@@ -320,16 +324,19 @@ class SynkStore {
     const localContracts = readJSON<Contract[]>(STORAGE_KEYS.LOCAL_CONTRACTS, []);
     const localRatings = readJSON<RatingRecord[]>(STORAGE_KEYS.LOCAL_RATINGS, []);
     const localJobs = readJSON<JobOpportunity[]>(STORAGE_KEYS.LOCAL_JOBS, []);
-
     const activeLocalSession = readJSON<CurrentSession | null>(STORAGE_KEYS.LOCAL_SESSION, null);
-    const session: CurrentSession = activeLocalSession || {
-      uid: guest.id,
-      role: 'client',
-      displayName: guest.nickname,
-      city: guest.city || 'Trelew',
-      isAnonymous: true,
-      recoveryCode: guest.recoveryCode,
-    };
+
+    const session: CurrentSession = activeLocalSession
+      ? { emailVerified: true, ...activeLocalSession }
+      : {
+          uid: guest.id,
+          role: 'client',
+          displayName: guest.nickname,
+          city: guest.city || 'Trelew',
+          isAnonymous: true,
+          emailVerified: true,
+          recoveryCode: guest.recoveryCode,
+        };
 
     const userFavorites = allFavs[session.uid] || [];
     if (session.role === 'client') {
@@ -398,6 +405,7 @@ class SynkStore {
         displayName: guest.nickname,
         city: guest.city || 'Trelew',
         isAnonymous: fbUser.isAnonymous,
+        emailVerified: fbUser.isAnonymous ? true : fbUser.emailVerified,
         recoveryCode: fbUser.isAnonymous ? guest.recoveryCode : undefined,
       };
       let needsOnboarding = false;
@@ -470,6 +478,7 @@ class SynkStore {
                   : priv.businessName || 'Comercio',
               city: guest.city || 'Trelew',
               isAnonymous: false,
+              emailVerified: fbUser.emailVerified,
               email: priv.email || fbUser.email || undefined,
               phone: priv.phone,
             };
@@ -547,6 +556,10 @@ class SynkStore {
               Array.isArray(data.serviceCategories) && data.serviceCategories.length > 0
                 ? (data.serviceCategories as ServiceCategory[])
                 : [primaryCat];
+            tariffs = tariffs.map((t) => ({
+              ...t,
+              serviceCategory: (t.serviceCategory as ServiceCategory) || primaryCat,
+            }));
             const courierRatings = this.state.ratings.filter((r) => r.courierId === d.id);
             const points = computeCourierPoints(
               completedCount,
@@ -561,6 +574,11 @@ class SynkStore {
               contactPhone: data.contactPhone || '',
               serviceCategory: serviceCategories[0] || primaryCat,
               serviceCategories,
+              tutoringLevels: Array.isArray(data.tutoringLevels)
+                ? (data.tutoringLevels as TutoringLevel[])
+                : [],
+              tutoringSubjects:
+                typeof data.tutoringSubjects === 'string' ? data.tutoringSubjects : '',
               vehicle: data.vehicle || '',
               city: (data.city as CityName) || 'Trelew',
               workZone: data.workZone || '',
@@ -757,6 +775,7 @@ class SynkStore {
             courierId: r.courierId,
             clientId: r.clientId,
             clientName: r.clientName,
+            serviceCategory: (r.serviceCategory as ServiceCategory) || undefined,
             score: Number(r.score || 5),
             comment: r.comment || '',
             createdAt: r.createdAt?.toDate?.()?.toISOString?.() || new Date().toISOString(),
@@ -1181,6 +1200,8 @@ class SynkStore {
           contactPhone: input.phone?.trim() || '',
           serviceCategory: categories[0] || 'motomandado',
           serviceCategories: categories,
+          tutoringLevels: Array.isArray(input.tutoringLevels) ? input.tutoringLevels : [],
+          tutoringSubjects: input.tutoringSubjects?.trim() || '',
           vehicle: input.vehicle?.trim() || '',
           city: input.city || 'Trelew',
           workZone: input.workZone?.trim() || '',
@@ -1204,6 +1225,11 @@ class SynkStore {
         })
       );
       await batch.commit();
+      try {
+        await sendEmailVerification(cred.user);
+      } catch (verifyErr) {
+        console.warn('No se pudo enviar automáticamente el correo de verificación:', verifyErr);
+      }
       return;
     }
 
@@ -1237,6 +1263,8 @@ class SynkStore {
       contactPhone: input.phone.trim(),
       serviceCategory: categories[0],
       serviceCategories: categories,
+      tutoringLevels: Array.isArray(input.tutoringLevels) ? input.tutoringLevels : [],
+      tutoringSubjects: input.tutoringSubjects?.trim() || '',
       vehicle: input.vehicle.trim(),
       city: input.city,
       workZone: input.workZone.trim(),
@@ -1268,6 +1296,7 @@ class SynkStore {
       displayName: publicName,
       city: input.city,
       isAnonymous: false,
+      emailVerified: true,
       email,
       phone: input.phone.trim(),
     };
@@ -1403,6 +1432,7 @@ class SynkStore {
       displayName,
       city,
       isAnonymous: false,
+      emailVerified: true,
       email: match.email,
       phone: match.phone,
     };
@@ -1410,6 +1440,30 @@ class SynkStore {
     this.broadcastSync();
     this.loadLocalCollections();
     return match.role;
+  }
+
+  async refreshEmailVerification(): Promise<boolean> {
+    if (!isFirebaseConfigured || !auth?.currentUser) {
+      return true;
+    }
+    await auth.currentUser.reload();
+    const verified = Boolean(auth.currentUser.emailVerified);
+    this.state = {
+      ...this.state,
+      session: {
+        ...this.state.session,
+        emailVerified: verified,
+      },
+    };
+    this.emit();
+    return verified;
+  }
+
+  async resendVerificationEmail(): Promise<void> {
+    if (!isFirebaseConfigured || !auth?.currentUser) {
+      return;
+    }
+    await sendEmailVerification(auth.currentUser);
   }
 
   async sendPasswordReset(emailInput: string): Promise<void> {
@@ -1455,6 +1509,8 @@ class SynkStore {
         | 'extraServices'
         | 'serviceCategory'
         | 'serviceCategories'
+        | 'tutoringLevels'
+        | 'tutoringSubjects'
       >
     >
   ): Promise<void> {
@@ -1474,6 +1530,14 @@ class SynkStore {
     }
     if ('schedule' in cleanPatch) {
       cleanPatch.schedule = cleanPatch.schedule ?? '';
+    }
+    if ('tutoringSubjects' in cleanPatch) {
+      cleanPatch.tutoringSubjects = cleanPatch.tutoringSubjects ?? '';
+    }
+    if ('tutoringLevels' in cleanPatch) {
+      cleanPatch.tutoringLevels = Array.isArray(cleanPatch.tutoringLevels)
+        ? cleanPatch.tutoringLevels
+        : [];
     }
     if (Array.isArray(cleanPatch.serviceCategories) && cleanPatch.serviceCategories.length > 0) {
       cleanPatch.serviceCategory = cleanPatch.serviceCategories[0];
@@ -1560,10 +1624,12 @@ class SynkStore {
     if (this.state.session.uid !== courierId || this.state.session.role !== 'courier') {
       throw new Error('Solo podés administrar tus propias tarifas.');
     }
+    const courier = this.state.couriers.find((c) => c.id === courierId);
     const tariffId = tariff.id || makeId('tariff');
     const cleanTariff: TariffItem = {
       id: tariffId,
       courierId,
+      serviceCategory: tariff.serviceCategory || courier?.serviceCategory || 'motomandado',
       title: tariff.title.trim(),
       mode: tariff.mode,
       priceArs: tariff.mode === 'negotiable' ? null : (tariff.priceArs ?? null),
@@ -2062,6 +2128,7 @@ class SynkStore {
     description: string;
     agreedPriceArs: number | null;
     modality: 'puntual' | 'recurrente';
+    serviceCategory?: ServiceCategory;
   }): Promise<Contract> {
     const conv = this.state.conversations.find((c) => c.id === input.conversationId);
     if (!conv) throw new Error('Conversación no encontrada.');
@@ -2089,7 +2156,7 @@ class SynkStore {
       clientRecoveryCode: conv.clientRecoveryCode || null,
       courierId: courier.id,
       courierName: courier.publicName || 'Prestador',
-      serviceCategory: courier.serviceCategory || 'motomandado',
+      serviceCategory: input.serviceCategory || courier.serviceCategory || 'motomandado',
       description: input.description.trim(),
       agreedPriceArs: input.agreedPriceArs ?? null,
       modality: input.modality,
@@ -2391,6 +2458,7 @@ class SynkStore {
       courierId: courier.id,
       clientId: this.state.session.uid,
       clientName: this.state.session.displayName || '@invitado',
+      serviceCategory: contract.serviceCategory || courier.serviceCategory || 'motomandado',
       score: cleanScore,
       comment: comment.trim() || '',
       createdAt: now,

@@ -8,6 +8,7 @@ import { ChatRoomView } from './components/ChatRoomView';
 import { CourierDashboardView } from './components/CourierDashboardView';
 import { CourierProfileView } from './components/CourierProfileView';
 import { CourierServicesView } from './components/CourierServicesView';
+import { EmailVerificationView } from './components/EmailVerificationView';
 import { FavoritesView } from './components/FavoritesView';
 import { FirstJobCelebrationModal } from './components/FirstJobCelebrationModal';
 import { GuestProfileView } from './components/GuestProfileView';
@@ -331,6 +332,12 @@ export default function App() {
     snap.session.role === 'client' &&
     screen.name !== 'auth';
 
+  const needsEmailVerification =
+    snap.ready &&
+    isProvider &&
+    snap.firebaseConnected &&
+    snap.session.emailVerified === false;
+
   return (
     <div className="min-h-dvh bg-[#F8FAFA] dark:bg-[#041015] sm:py-4">
       {/* Centered 430px Mobile App Frame */}
@@ -393,7 +400,22 @@ export default function App() {
               </div>
             )}
 
-            <main className="min-h-[calc(100dvh-120px)] bg-[#F8FAFA] dark:bg-[#07181E]">
+            {needsEmailVerification ? (
+              <main className="min-h-[calc(100dvh-56px)] bg-[#F8FAFA] dark:bg-[#07181E]">
+                <EmailVerificationView
+                  email={snap.session.email}
+                  onCheckVerified={() => synkStore.refreshEmailVerification()}
+                  onResendEmail={() => synkStore.resendVerificationEmail()}
+                  onLogout={async () => {
+                    await synkStore.logoutToGuest();
+                    setHistory([]);
+                    setScreen({ name: 'home' });
+                  }}
+                />
+              </main>
+            ) : (
+              <>
+                <main className="min-h-[calc(100dvh-120px)] bg-[#F8FAFA] dark:bg-[#07181E]">
               <NotificationPermissionBanner
                 visible={
                   screen.name !== 'auth' &&
@@ -677,64 +699,68 @@ export default function App() {
               onChangeTab={handleBottomTabChange}
               unreadChatsCount={unreadChatsCount}
             />
+              </>
+            )}
 
-            <UserMenuSheet
-              open={menuOpen}
-              session={snap.session}
-              favoritesCount={snap.favorites.length}
-              firebaseConnected={snap.firebaseConnected}
-              isDark={isDark}
-              notificationPermission={notifPermission}
-              onRequestNotifications={handleEnableNotifications}
-              onToggleTheme={toggleTheme}
-              onClose={() => setMenuOpen(false)}
-              onOpenCourierAuthOrPanel={() => {
-                if (isProvider) {
+            {!needsEmailVerification && (
+              <UserMenuSheet
+                open={menuOpen}
+                session={snap.session}
+                favoritesCount={snap.favorites.length}
+                firebaseConnected={snap.firebaseConnected}
+                isDark={isDark}
+                notificationPermission={notifPermission}
+                onRequestNotifications={handleEnableNotifications}
+                onToggleTheme={toggleTheme}
+                onClose={() => setMenuOpen(false)}
+                onOpenCourierAuthOrPanel={() => {
+                  if (isProvider) {
+                    setHistory([]);
+                    setScreen({ name: 'courierDashboard' });
+                  } else {
+                    navigate({ name: 'auth', initialType: 'courier' });
+                  }
+                }}
+                onOpenCourierServices={() => {
                   setHistory([]);
-                  setScreen({ name: 'courierDashboard' });
-                } else {
-                  navigate({ name: 'auth', initialType: 'courier' });
-                }
-              }}
-              onOpenCourierServices={() => {
-                setHistory([]);
-                setScreen({ name: 'courierServices' });
-              }}
-              onOpenPublicPreview={() => {
-                setHistory([]);
-                setScreen({ name: 'previewProfile' });
-              }}
-              onOpenMerchantAuthOrPanel={() => {
-                if (snap.session.role === 'merchant') {
-                  navigate({ name: 'merchants' });
-                } else {
-                  navigate({ name: 'auth', initialType: 'merchant' });
-                }
-              }}
-              onOpenFavorites={() => navigate({ name: 'favorites' })}
-              onOpenProfile={() => {
-                if (isProvider) {
+                  setScreen({ name: 'courierServices' });
+                }}
+                onOpenPublicPreview={() => {
                   setHistory([]);
-                  setScreen({ name: 'courierDashboard' });
-                } else if (snap.session.role === 'merchant') {
-                  navigate({ name: 'merchants' });
-                } else {
-                  navigate({ name: 'guestProfile' });
-                }
-              }}
-              onOpenJobs={() => navigate({ name: 'merchants' })}
-              onOpenRanking={() => {
-                setHistory([]);
-                setScreen({ name: 'ranking' });
-              }}
-              onLogout={async () => {
-                await synkStore.logoutToGuest();
-                setHistory([]);
-                setScreen({ name: 'home' });
-              }}
-            />
+                  setScreen({ name: 'previewProfile' });
+                }}
+                onOpenMerchantAuthOrPanel={() => {
+                  if (snap.session.role === 'merchant') {
+                    navigate({ name: 'merchants' });
+                  } else {
+                    navigate({ name: 'auth', initialType: 'merchant' });
+                  }
+                }}
+                onOpenFavorites={() => navigate({ name: 'favorites' })}
+                onOpenProfile={() => {
+                  if (isProvider) {
+                    setHistory([]);
+                    setScreen({ name: 'courierDashboard' });
+                  } else if (snap.session.role === 'merchant') {
+                    navigate({ name: 'merchants' });
+                  } else {
+                    navigate({ name: 'guestProfile' });
+                  }
+                }}
+                onOpenJobs={() => navigate({ name: 'merchants' })}
+                onOpenRanking={() => {
+                  setHistory([]);
+                  setScreen({ name: 'ranking' });
+                }}
+                onLogout={async () => {
+                  await synkStore.logoutToGuest();
+                  setHistory([]);
+                  setScreen({ name: 'home' });
+                }}
+              />
+            )}
 
-            {snap.firstJobCelebrationPending && isProvider && (
+            {!needsEmailVerification && snap.firstJobCelebrationPending && isProvider && (
               <FirstJobCelebrationModal
                 onClose={() => synkStore.dismissFirstJobCelebration()}
                 onGoToRanking={() => {

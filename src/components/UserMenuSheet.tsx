@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import type { CurrentSession } from '../types/synk';
 import type { AppNotificationPermission } from '../utils/notifications';
+import { ORDERED_CATEGORIES } from '../utils/formatters';
 import { PWAInstallButton } from './PWAInstallButton';
 
 interface UserMenuSheetProps {
@@ -272,7 +273,7 @@ export const UserMenuSheet: React.FC<UserMenuSheetProps> = ({
                         Mis Servicios y Tarifas
                       </p>
                       <p className="text-xs text-slate-500 dark:text-slate-400">
-                        14 rubros, precios personalizados, foto y horarios
+                        {ORDERED_CATEGORIES.length} rubros, precios personalizados, foto y horarios
                       </p>
                     </div>
                   </div>

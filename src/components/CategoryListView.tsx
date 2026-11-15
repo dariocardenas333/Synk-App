@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { ArrowLeft, CheckCircle2, Clock } from 'lucide-react';
-import type { CityName, CourierPublicProfile, ServiceCategory } from '../types/synk';
-import { CATEGORY_INFO } from '../utils/formatters';
+import { ArrowLeft, CheckCircle2, Clock, PowerOff } from 'lucide-react';
+import type { AvailabilityStatus, CityName, CourierPublicProfile, ServiceCategory } from '../types/synk';
+import { getCategoryInfo, getCourierCategories } from '../utils/formatters';
 import { CategoryIcon } from './CategoryIcon';
 import { CourierCard } from './CourierCard';
 
@@ -16,6 +16,8 @@ interface CategoryListViewProps {
   onContact: (courier: CourierPublicProfile) => void;
 }
 
+type FilterMode = 'all' | AvailabilityStatus;
+
 export const CategoryListView: React.FC<CategoryListViewProps> = ({
   category,
   currentCity,
@@ -26,114 +28,217 @@ export const CategoryListView: React.FC<CategoryListViewProps> = ({
   onViewProfile,
   onContact,
 }) => {
-  const [availabilityTab, setAvailabilityTab] = useState<'available' | 'busy'>('available');
+  const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [cityFilterOnly, setCityFilterOnly] = useState<boolean>(true);
 
-  const catInfo = CATEGORY_INFO[category];
-  const byCategory = couriers.filter((c) => c.serviceCategory === category);
+  const catInfo = getCategoryInfo(category);
+  const byCategory = couriers.filter((c) => getCourierCategories(c).includes(category));
   const byCity = cityFilterOnly ? byCategory.filter((c) => c.city === currentCity) : byCategory;
 
-  const availableList = byCity.filter((c) => c.isAvailable);
-  const busyList = byCity.filter((c) => !c.isAvailable);
-  const displayed = availabilityTab === 'available' ? availableList : busyList;
+  const availableList = byCity.filter((c) => c.availabilityStatus === 'available');
+  const busyList = byCity.filter((c) => c.availabilityStatus === 'busy');
+  const offlineList = byCity.filter((c) => c.availabilityStatus === 'offline');
+
+  const showAvailable = filterMode === 'all' || filterMode === 'available';
+  const showBusy = filterMode === 'all' || filterMode === 'busy';
+  const showOffline = filterMode === 'all' || filterMode === 'offline';
+
+  const visibleCount =
+    (showAvailable ? availableList.length : 0) +
+    (showBusy ? busyList.length : 0) +
+    (showOffline ? offlineList.length : 0);
 
   return (
-    <div className="pb-24">
-      <div className="sticky top-14 z-20 border-b border-slate-100 bg-white/95 px-4 pb-3 pt-2 backdrop-blur-md">
+    <div className="bg-[#F8FAFA] pb-24">
+      <div className="sticky top-14 z-20 border-b border-[#E2E8F0] bg-white/95 px-4 pb-3 pt-2 backdrop-blur-md">
         <div className="flex items-center justify-between gap-2">
           <button
             type="button"
             onClick={onBack}
-            className="flex h-11 items-center gap-1.5 pr-2 text-sm font-semibold text-[#1A2E4A]"
+            className="flex h-11 items-center gap-1.5 pr-2 text-sm font-semibold text-[#063642]"
           >
             <ArrowLeft className="h-5 w-5" />
-            <span>Categorías</span>
+            <span>Rubros</span>
           </button>
 
           <button
             type="button"
             onClick={() => setCityFilterOnly((prev) => !prev)}
-            className="h-9 rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs font-semibold text-[#1A2E4A] transition hover:bg-slate-100"
+            className="h-9 rounded-lg border border-[#E2E8F0] bg-[#F8FAFA] px-3 text-xs font-semibold text-[#063642] transition hover:border-[#008B8B]"
           >
             {cityFilterOnly ? `Solo ${currentCity}` : 'Todas las ciudades'}
           </button>
         </div>
 
         <div className="mt-1 flex items-center gap-2.5">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#FF6B00]/10 text-[#FF6B00]">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#008B8B]/10 text-[#008B8B]">
             <CategoryIcon category={category} className="h-5 w-5" />
           </div>
-          <div>
-            <h1 className="font-display text-lg font-extrabold text-[#1A2E4A]">
+          <div className="min-w-0">
+            <h1 className="font-display text-lg font-extrabold text-[#063642]">
               {catInfo.label}
             </h1>
-            <p className="text-xs text-slate-500">{catInfo.shortDesc}</p>
+            <p className="truncate text-xs text-slate-500">{catInfo.shortDesc}</p>
           </div>
         </div>
 
-        {/* Segmented Tabs: DISPONIBLES / OCUPADOS */}
-        <div className="mt-3 grid grid-cols-2 gap-1.5 rounded-xl bg-slate-100 p-1">
+        {/* Filter Chips: Todos / Disponibles / Ocupados / Desconectados */}
+        <div className="mt-3 flex gap-1.5 overflow-x-auto pb-0.5 no-scrollbar">
           <button
             type="button"
-            onClick={() => setAvailabilityTab('available')}
-            className={`flex h-10 items-center justify-center gap-1.5 rounded-lg text-xs font-bold transition ${
-              availabilityTab === 'available'
-                ? 'bg-white text-[#16A34A] shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
+            onClick={() => setFilterMode('all')}
+            className={`h-9 shrink-0 rounded-lg px-3 text-xs font-bold transition ${
+              filterMode === 'all'
+                ? 'bg-[#063642] text-white'
+                : 'bg-[#F8FAFA] text-slate-600 hover:bg-slate-200/60'
             }`}
           >
-            <CheckCircle2 className="h-4 w-4 text-[#22C55E]" />
-            <span>DISPONIBLES ({availableList.length})</span>
+            Todos ({byCity.length})
           </button>
           <button
             type="button"
-            onClick={() => setAvailabilityTab('busy')}
-            className={`flex h-10 items-center justify-center gap-1.5 rounded-lg text-xs font-bold transition ${
-              availabilityTab === 'busy'
-                ? 'bg-white text-[#DC2626] shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
+            onClick={() => setFilterMode('available')}
+            className={`flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-3 text-xs font-bold transition ${
+              filterMode === 'available'
+                ? 'bg-[#22C55E] text-white'
+                : 'bg-[#22C55E]/10 text-[#15803D]'
             }`}
           >
-            <Clock className="h-4 w-4 text-[#EF4444]" />
-            <span>OCUPADOS ({busyList.length})</span>
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            <span>Disponibles ({availableList.length})</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilterMode('busy')}
+            className={`flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-3 text-xs font-bold transition ${
+              filterMode === 'busy'
+                ? 'bg-[#EF4444] text-white'
+                : 'bg-[#EF4444]/10 text-[#B91C1C]'
+            }`}
+          >
+            <Clock className="h-3.5 w-3.5" />
+            <span>Ocupados ({busyList.length})</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilterMode('offline')}
+            className={`flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-3 text-xs font-bold transition ${
+              filterMode === 'offline'
+                ? 'bg-slate-600 text-white'
+                : 'bg-slate-100 text-slate-600'
+            }`}
+          >
+            <PowerOff className="h-3.5 w-3.5" />
+            <span>Desconectados ({offlineList.length})</span>
           </button>
         </div>
       </div>
 
-      <div className="space-y-3 p-4">
-        {displayed.length === 0 ? (
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-center">
-            <p className="text-sm font-semibold text-[#1A2E4A]">
-              {availabilityTab === 'available'
-                ? `No hay repartidores disponibles en ${cityFilterOnly ? currentCity : 'esta categoría'} ahora.`
-                : `No hay repartidores ocupados en ${cityFilterOnly ? currentCity : 'esta categoría'}.`}
+      <div className="space-y-6 p-4">
+        {visibleCount === 0 ? (
+          <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 text-center">
+            <p className="text-sm font-semibold text-[#063642]">
+              No hay prestadores registrados en {catInfo.label} para{' '}
+              {cityFilterOnly ? currentCity : 'esta búsqueda'}.
             </p>
             <p className="mt-1 text-xs text-slate-500">
               {cityFilterOnly && byCategory.length > 0
-                ? 'Podés ver repartidores de ciudades cercanas.'
-                : 'Probá explorando otra categoría o buscá en toda la provincia.'}
+                ? 'Podés ver prestadores registrados en ciudades cercanas.'
+                : 'A medida que se sumen prestadores locales aparecerán acá en tiempo real.'}
             </p>
             {cityFilterOnly && byCategory.length > 0 && (
               <button
                 type="button"
                 onClick={() => setCityFilterOnly(false)}
-                className="mt-4 h-10 rounded-xl bg-[#1A2E4A] px-4 text-xs font-bold text-white"
+                className="mt-4 h-10 rounded-xl bg-[#008B8B] px-4 text-xs font-bold text-white"
               >
                 Ver en todas las ciudades ({byCategory.length})
               </button>
             )}
           </div>
         ) : (
-          displayed.map((courier) => (
-            <CourierCard
-              key={courier.id}
-              courier={courier}
-              isFavorite={favorites.includes(courier.id)}
-              onToggleFavorite={onToggleFavorite}
-              onViewProfile={onViewProfile}
-              onContact={onContact}
-            />
-          ))
+          <>
+            {/* 1. DISPONIBLES */}
+            {showAvailable && availableList.length > 0 && (
+              <section>
+                <div className="mb-2.5 flex items-center justify-between">
+                  <h2 className="flex items-center gap-1.5 font-display text-sm font-extrabold text-[#15803D]">
+                    <CheckCircle2 className="h-4 w-4 text-[#22C55E]" />
+                    <span>Disponibles ({availableList.length})</span>
+                  </h2>
+                  <span className="text-[11px] font-medium text-slate-400">
+                    Listos para responder
+                  </span>
+                </div>
+                <div className="space-y-3">
+                  {availableList.map((courier) => (
+                    <CourierCard
+                      key={courier.id}
+                      courier={courier}
+                      isFavorite={favorites.includes(courier.id)}
+                      onToggleFavorite={onToggleFavorite}
+                      onViewProfile={onViewProfile}
+                      onContact={onContact}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* 2. OCUPADOS */}
+            {showBusy && busyList.length > 0 && (
+              <section>
+                <div className="mb-2.5 flex items-center justify-between">
+                  <h2 className="flex items-center gap-1.5 font-display text-sm font-extrabold text-[#B91C1C]">
+                    <Clock className="h-4 w-4 text-[#EF4444]" />
+                    <span>Ocupados ({busyList.length})</span>
+                  </h2>
+                  <span className="text-[11px] font-medium text-slate-400">
+                    En medio de un trabajo
+                  </span>
+                </div>
+                <div className="space-y-3">
+                  {busyList.map((courier) => (
+                    <CourierCard
+                      key={courier.id}
+                      courier={courier}
+                      isFavorite={favorites.includes(courier.id)}
+                      onToggleFavorite={onToggleFavorite}
+                      onViewProfile={onViewProfile}
+                      onContact={onContact}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* 3. DESCONECTADOS */}
+            {showOffline && offlineList.length > 0 && (
+              <section className="border-t border-[#E2E8F0] pt-5">
+                <div className="mb-2.5">
+                  <h2 className="flex items-center gap-1.5 font-display text-sm font-extrabold text-slate-500">
+                    <PowerOff className="h-4 w-4 text-[#9CA3AF]" />
+                    <span>Desconectados ({offlineList.length})</span>
+                  </h2>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    Fuera de horario laboral / descansando. Es posible que no respondan de inmediato.
+                  </p>
+                </div>
+                <div className="space-y-3">
+                  {offlineList.map((courier) => (
+                    <CourierCard
+                      key={courier.id}
+                      courier={courier}
+                      isFavorite={favorites.includes(courier.id)}
+                      onToggleFavorite={onToggleFavorite}
+                      onViewProfile={onViewProfile}
+                      onContact={onContact}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+          </>
         )}
       </div>
     </div>

@@ -1,7 +1,13 @@
 import React, { useMemo, useState } from 'react';
 import { ArrowUpDown, RotateCcw, Search, SlidersHorizontal } from 'lucide-react';
-import type { CityName, CourierPublicProfile, ServiceCategory } from '../types/synk';
-import { CATEGORY_INFO, CITIES, CITY_NEIGHBORHOODS } from '../utils/formatters';
+import type { AvailabilityStatus, CityName, CourierPublicProfile, ServiceCategory } from '../types/synk';
+import {
+  CATEGORY_INFO,
+  CITIES,
+  CITY_NEIGHBORHOODS,
+  ORDERED_CATEGORIES,
+  getCourierCategories,
+} from '../utils/formatters';
 import { CourierCard } from './CourierCard';
 
 interface SearchViewProps {
@@ -13,7 +19,7 @@ interface SearchViewProps {
   onContact: (courier: CourierPublicProfile) => void;
 }
 
-type AvailabilityFilter = 'all' | 'available' | 'busy';
+type AvailabilityFilter = 'all' | AvailabilityStatus;
 type SortMode = 'lowest_price' | 'best_rating' | 'most_completed';
 
 export const SearchView: React.FC<SearchViewProps> = ({
@@ -47,9 +53,9 @@ export const SearchView: React.FC<SearchViewProps> = ({
     const maxP = maxPrice ? Number(maxPrice) : null;
 
     const list = couriers.filter((c) => {
-      if (category !== 'all' && c.serviceCategory !== category) return false;
-      if (availability === 'available' && !c.isAvailable) return false;
-      if (availability === 'busy' && c.isAvailable) return false;
+      const courierCats = getCourierCategories(c);
+      if (category !== 'all' && !courierCats.includes(category)) return false;
+      if (availability !== 'all' && c.availabilityStatus !== availability) return false;
       if (city !== 'all' && c.city !== city) return false;
 
       if (b) {
@@ -66,6 +72,12 @@ export const SearchView: React.FC<SearchViewProps> = ({
       if (minRating > 0 && c.ratingAverage < minRating) return false;
 
       if (q) {
+        const catKeywords = courierCats
+          .map((id) => {
+            const info = CATEGORY_INFO[id];
+            return info ? `${info.label} ${info.shortDesc} ${info.keywords.join(' ')}` : '';
+          })
+          .join(' ');
         const haystack = [
           c.publicName,
           c.vehicle,
@@ -73,6 +85,7 @@ export const SearchView: React.FC<SearchViewProps> = ({
           c.city,
           c.description,
           ...c.coverageZones,
+          catKeywords,
         ]
           .join(' ')
           .toLowerCase();
@@ -82,6 +95,7 @@ export const SearchView: React.FC<SearchViewProps> = ({
       return true;
     });
 
+    // Client visibility sort strictly by price, rating, or completed count
     return list.sort((a, bItem) => {
       if (sortBy === 'lowest_price') {
         const pa = a.startingPriceArs ?? Number.MAX_SAFE_INTEGER;
@@ -110,21 +124,21 @@ export const SearchView: React.FC<SearchViewProps> = ({
   };
 
   return (
-    <div className="pb-24">
-      <div className="border-b border-slate-100 bg-white px-4 pb-4 pt-3">
-        <h1 className="font-display text-lg font-extrabold text-[#1A2E4A]">
-          Buscar repartidores
+    <div className="bg-[#F8FAFA] pb-24">
+      <div className="border-b border-[#E2E8F0] bg-white px-4 pb-4 pt-3">
+        <h1 className="font-display text-lg font-extrabold text-[#063642]">
+          Buscar servicios
         </h1>
 
         <div className="mt-2.5 flex items-center gap-2">
           <div className="relative flex-1">
-            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#008B8B]" />
             <input
               type="search"
               value={queryText}
               onChange={(e) => setQueryText(e.target.value)}
-              placeholder="Nombre, vehículo o zona..."
-              className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm text-slate-900 outline-none focus:border-[#FF6B00] focus:bg-white"
+              placeholder="Ej: plomero, fumigación, poda, moto..."
+              className="h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] pl-10 pr-3 text-sm text-[#063642] outline-none focus:border-[#008B8B] focus:bg-white"
             />
           </div>
           <button
@@ -132,8 +146,8 @@ export const SearchView: React.FC<SearchViewProps> = ({
             onClick={() => setShowFilters((p) => !p)}
             className={`flex h-11 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-xs font-semibold transition ${
               showFilters
-                ? 'border-[#1A2E4A] bg-[#1A2E4A] text-white'
-                : 'border-slate-200 bg-white text-[#1A2E4A]'
+                ? 'border-[#063642] bg-[#063642] text-white'
+                : 'border-[#E2E8F0] bg-white text-[#063642]'
             }`}
           >
             <SlidersHorizontal className="h-4 w-4" />
@@ -142,36 +156,35 @@ export const SearchView: React.FC<SearchViewProps> = ({
         </div>
 
         {showFilters && (
-          <div className="mt-3 space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-3.5">
+          <div className="mt-3 space-y-3 rounded-2xl border border-[#E2E8F0] bg-[#F8FAFA] p-3.5">
             <div className="grid grid-cols-2 gap-2.5">
               <div>
-                <label className="block text-[11px] font-semibold text-slate-600">Categoría</label>
+                <label className="block text-[11px] font-semibold text-slate-600">Rubro</label>
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value as ServiceCategory | 'all')}
-                  className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-900 outline-none focus:border-[#FF6B00]"
+                  className="mt-1 h-10 w-full rounded-lg border border-[#E2E8F0] bg-white px-2.5 text-xs font-medium text-[#063642] outline-none focus:border-[#008B8B]"
                 >
-                  <option value="all">Todas</option>
-                  {Object.values(CATEGORY_INFO).map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.label}
+                  <option value="all">Todos los rubros (14)</option>
+                  {ORDERED_CATEGORIES.map((catId) => (
+                    <option key={catId} value={catId}>
+                      {CATEGORY_INFO[catId].label}
                     </option>
                   ))}
                 </select>
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-slate-600">
-                  Disponibilidad
-                </label>
+                <label className="block text-[11px] font-semibold text-slate-600">Estado</label>
                 <select
                   value={availability}
                   onChange={(e) => setAvailability(e.target.value as AvailabilityFilter)}
-                  className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-900 outline-none focus:border-[#FF6B00]"
+                  className="mt-1 h-10 w-full rounded-lg border border-[#E2E8F0] bg-white px-2.5 text-xs font-medium text-[#063642] outline-none focus:border-[#008B8B]"
                 >
                   <option value="all">Todos</option>
                   <option value="available">Disponibles</option>
                   <option value="busy">Ocupados</option>
+                  <option value="offline">Desconectados</option>
                 </select>
               </div>
 
@@ -183,7 +196,7 @@ export const SearchView: React.FC<SearchViewProps> = ({
                     setCity(e.target.value as CityName | 'all');
                     setBarrio('');
                   }}
-                  className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-900 outline-none focus:border-[#FF6B00]"
+                  className="mt-1 h-10 w-full rounded-lg border border-[#E2E8F0] bg-white px-2.5 text-xs font-medium text-[#063642] outline-none focus:border-[#008B8B]"
                 >
                   <option value="all">Todas las ciudades</option>
                   {CITIES.map((c) => (
@@ -199,7 +212,7 @@ export const SearchView: React.FC<SearchViewProps> = ({
                 <select
                   value={barrio}
                   onChange={(e) => setBarrio(e.target.value)}
-                  className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-900 outline-none focus:border-[#FF6B00]"
+                  className="mt-1 h-10 w-full rounded-lg border border-[#E2E8F0] bg-white px-2.5 text-xs font-medium text-[#063642] outline-none focus:border-[#008B8B]"
                 >
                   <option value="">Todos los barrios</option>
                   {neighborhoodOptions.map((n) => (
@@ -220,8 +233,8 @@ export const SearchView: React.FC<SearchViewProps> = ({
                   step={500}
                   value={maxPrice}
                   onChange={(e) => setMaxPrice(e.target.value)}
-                  placeholder="Ej: 4000"
-                  className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-900 outline-none focus:border-[#FF6B00] tabular-nums"
+                  placeholder="Ej: 5000"
+                  className="mt-1 h-10 w-full rounded-lg border border-[#E2E8F0] bg-white px-2.5 text-xs font-medium text-[#063642] outline-none focus:border-[#008B8B] tabular-nums"
                 />
               </div>
 
@@ -232,7 +245,7 @@ export const SearchView: React.FC<SearchViewProps> = ({
                 <select
                   value={minRating}
                   onChange={(e) => setMinRating(Number(e.target.value))}
-                  className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-900 outline-none focus:border-[#FF6B00]"
+                  className="mt-1 h-10 w-full rounded-lg border border-[#E2E8F0] bg-white px-2.5 text-xs font-medium text-[#063642] outline-none focus:border-[#008B8B]"
                 >
                   <option value={0}>Todas</option>
                   <option value={4}>4.0 o más</option>
@@ -242,18 +255,18 @@ export const SearchView: React.FC<SearchViewProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center justify-between gap-2 border-t border-slate-200/80 pt-2.5">
+            <div className="flex items-center justify-between gap-2 border-t border-[#E2E8F0] pt-2.5">
               <div className="flex items-center gap-1.5">
-                <ArrowUpDown className="h-3.5 w-3.5 text-slate-500" />
+                <ArrowUpDown className="h-3.5 w-3.5 text-[#008B8B]" />
                 <select
                   aria-label="Ordenar resultados"
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as SortMode)}
-                  className="h-9 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-[#1A2E4A] outline-none"
+                  className="h-9 rounded-lg border border-[#E2E8F0] bg-white px-2.5 text-xs font-semibold text-[#063642] outline-none"
                 >
                   <option value="lowest_price">Ordenar: Menor precio</option>
                   <option value="best_rating">Ordenar: Mejor calificación</option>
-                  <option value="most_completed">Ordenar: Más mandados</option>
+                  <option value="most_completed">Ordenar: Más trabajos</option>
                 </select>
               </div>
 
@@ -273,13 +286,13 @@ export const SearchView: React.FC<SearchViewProps> = ({
       <div className="p-4">
         <p className="mb-3 text-xs font-medium text-slate-500 tabular-nums">
           {filtered.length}{' '}
-          {filtered.length === 1 ? 'repartidor encontrado' : 'repartidores encontrados'}
+          {filtered.length === 1 ? 'prestador encontrado' : 'prestadores encontrados'}
         </p>
 
         {filtered.length === 0 ? (
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-center">
-            <p className="text-sm font-semibold text-[#1A2E4A]">
-              No encontramos repartidores con esos filtros
+          <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 text-center">
+            <p className="text-sm font-semibold text-[#063642]">
+              No encontramos prestadores con esos filtros
             </p>
             <p className="mt-1 text-xs text-slate-500">
               Probá ampliando el precio máximo, el barrio o la ciudad.
@@ -287,7 +300,7 @@ export const SearchView: React.FC<SearchViewProps> = ({
             <button
               type="button"
               onClick={resetFilters}
-              className="mt-4 h-10 rounded-xl bg-[#FF6B00] px-4 text-xs font-bold text-white"
+              className="mt-4 h-10 rounded-xl bg-[#008B8B] px-4 text-xs font-bold text-white"
             >
               Restablecer filtros
             </button>

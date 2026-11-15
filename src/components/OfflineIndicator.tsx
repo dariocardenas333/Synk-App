@@ -21,7 +21,7 @@ export const OfflineIndicator: React.FC = () => {
   if (isOnline) return null;
 
   return (
-    <div className="mx-auto flex w-full max-w-[430px] items-center justify-center gap-2 bg-amber-500 px-4 py-1.5 text-xs font-medium text-white">
+    <div className="mx-auto flex w-full max-w-[430px] items-center justify-center gap-2 bg-[#F5A623] px-4 py-1.5 text-xs font-bold text-[#063642]">
       <WifiOff className="h-3.5 w-3.5 shrink-0" />
       <span>Sin conexión — Mostrando datos guardados en caché</span>
     </div>

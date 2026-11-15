@@ -5,11 +5,19 @@
     --font-display: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
     --font-body: 'DM Sans', system-ui, -apple-system, sans-serif;
     --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+    --color-primary: #063642;
+    --color-secondary: #008B8B;
+    --color-accent: #F5A623;
+    --color-bg: #F8FAFA;
+    --color-surface: #FFFFFF;
+    --color-border: #E2E8F0;
   }
 
   html,
   body {
     font-family: var(--font-body);
+    background-color: var(--color-bg);
+    color: var(--color-primary);
     -webkit-tap-highlight-color: transparent;
     overscroll-behavior-y: contain;
   }

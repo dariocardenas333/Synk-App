@@ -1,4 +1,20 @@
-export type ServiceCategory = 'motomandado' | 'bicimandado' | 'automandado' | 'flete';
+export type ServiceCategory =
+  | 'motomandado'
+  | 'bicimandado'
+  | 'automandado'
+  | 'flete'
+  | 'auxilio_vehicular'
+  | 'urgencias_cerrajeria'
+  | 'jardineria_poda'
+  | 'fumigacion_plagas'
+  | 'limpieza_terrenos'
+  | 'plomeria_gas'
+  | 'electricidad'
+  | 'electrodomesticos_clima'
+  | 'cuidado_mascotas'
+  | 'limpieza_soporte_pc';
+
+export type AvailabilityStatus = 'available' | 'busy' | 'offline';
 
 export type CityName = 'Trelew' | 'Rawson' | 'Puerto Madryn' | 'Comodoro Rivadavia';
 
@@ -23,7 +39,9 @@ export interface CourierPublicProfile {
   id: string;
   publicName: string;
   photoUrl?: string;
+  contactPhone?: string;
   serviceCategory: ServiceCategory;
+  serviceCategories?: ServiceCategory[];
   vehicle: string;
   city: CityName;
   workZone: string;
@@ -32,13 +50,14 @@ export interface CourierPublicProfile {
   description: string;
   extraServices: string[];
   startingPriceArs: number | null;
+  availabilityStatus: AvailabilityStatus;
   isAvailable: boolean;
   activeContractId?: string | null;
   ratingAverage: number;
   ratingCount: number;
   completedCount: number;
+  points?: number;
   tariffs: TariffItem[];
-  isDemo?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -51,7 +70,6 @@ export interface MerchantProfile {
   city: CityName;
   category: string;
   description?: string;
-  isDemo?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -148,7 +166,6 @@ export interface JobOpportunity {
   modality: 'puntual' | 'recurrente' | 'turno';
   paySummary: string;
   status: 'open' | 'closed';
-  isDemo?: boolean;
   createdAt: string;
 }
 

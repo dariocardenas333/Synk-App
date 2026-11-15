@@ -1,667 +1,402 @@
 import React, { useState } from 'react';
 import {
-  ArrowLeft,
-  Briefcase,
-  Camera,
   CheckCircle2,
   Clock,
   FileCheck2,
-  Plus,
-  Trash2,
+  Flame,
+  PowerOff,
+  SlidersHorizontal,
+  Star,
+  Trophy,
   XCircle,
 } from 'lucide-react';
-import type {
-  CityName,
-  Contract,
-  CourierPublicProfile,
-  ServiceCategory,
-  TariffItem,
-  TariffMode,
-} from '../types/synk';
+import type { AvailabilityStatus, Contract, CourierPublicProfile } from '../types/synk';
 import {
-  CATEGORY_INFO,
-  CITIES,
-  TARIFF_MODE_LABELS,
+  AVAILABILITY_META,
   formatARS,
+  getCategoryInfo,
+  getCourierCategories,
   getInitials,
-  resizeImageToDataUrl,
 } from '../utils/formatters';
 
 interface CourierDashboardViewProps {
   courier: CourierPublicProfile;
   contracts: Contract[];
-  onBack: () => void;
-  onUpdateProfile: (
-    patch: Partial<
-      Pick<
-        CourierPublicProfile,
-        | 'publicName'
-        | 'photoUrl'
-        | 'vehicle'
-        | 'city'
-        | 'workZone'
-        | 'coverageZones'
-        | 'schedule'
-        | 'description'
-        | 'extraServices'
-        | 'serviceCategory'
-      >
-    >
-  ) => Promise<void>;
-  onToggleAvailability: (nextAvailable: boolean) => Promise<void>;
-  onSaveTariff: (tariff: Omit<TariffItem, 'id' | 'courierId'> & { id?: string }) => Promise<void>;
-  onDeleteTariff: (tariffId: string) => Promise<void>;
+  rankingPosition: number;
+  onChangeAvailability: (nextStatus: AvailabilityStatus) => Promise<void>;
   onAcceptContract: (contractId: string) => Promise<void>;
   onCompleteContract: (contractId: string) => Promise<void>;
   onCancelContract: (contractId: string) => Promise<void>;
   onOpenChat: (conversationId: string) => void;
-  onOpenJobs: () => void;
+  onOpenServices: () => void;
+  onOpenRanking: () => void;
 }
+
+const SHIFT_STATES: Array<{
+  status: AvailabilityStatus;
+  label: string;
+  sub: string;
+  activeBg: string;
+  activeBorder: string;
+  icon: React.ReactNode;
+}> = [
+  {
+    status: 'available',
+    label: 'Disponible',
+    sub: 'Listo para pedidos',
+    activeBg: 'bg-[#22C55E] text-white',
+    activeBorder: 'border-[#22C55E]',
+    icon: <CheckCircle2 className="h-6 w-6" />,
+  },
+  {
+    status: 'busy',
+    label: 'Ocupado',
+    sub: 'En un trabajo',
+    activeBg: 'bg-[#EF4444] text-white',
+    activeBorder: 'border-[#EF4444]',
+    icon: <Clock className="h-6 w-6" />,
+  },
+  {
+    status: 'offline',
+    label: 'Desconectado',
+    sub: 'Fuera de horario',
+    activeBg: 'bg-[#9CA3AF] text-white',
+    activeBorder: 'border-[#9CA3AF]',
+    icon: <PowerOff className="h-6 w-6" />,
+  },
+];
 
 export const CourierDashboardView: React.FC<CourierDashboardViewProps> = ({
   courier,
   contracts,
-  onBack,
-  onUpdateProfile,
-  onToggleAvailability,
-  onSaveTariff,
-  onDeleteTariff,
+  rankingPosition,
+  onChangeAvailability,
   onAcceptContract,
   onCompleteContract,
   onCancelContract,
   onOpenChat,
-  onOpenJobs,
+  onOpenServices,
+  onOpenRanking,
 }) => {
-  const [tab, setTab] = useState<'contracts' | 'profile' | 'tariffs'>('contracts');
   const [feedback, setFeedback] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [busyContractId, setBusyContractId] = useState<string | null>(null);
 
-  // Profile form state
-  const [publicName, setPublicName] = useState(courier.publicName);
-  const [serviceCategory, setServiceCategory] = useState<ServiceCategory>(courier.serviceCategory);
-  const [vehicle, setVehicle] = useState(courier.vehicle);
-  const [city, setCity] = useState<CityName>(courier.city);
-  const [workZone, setWorkZone] = useState(courier.workZone);
-  const [coverageText, setCoverageText] = useState(courier.coverageZones.join(', '));
-  const [schedule, setSchedule] = useState(courier.schedule);
-  const [description, setDescription] = useState(courier.description);
-  const [extraText, setExtraText] = useState(courier.extraServices.join(', '));
-  const [savingProfile, setSavingProfile] = useState(false);
+  const myContracts = contracts
+    .filter((c) => c.courierId === courier.id)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
-  // New tariff state
-  const [tTitle, setTTitle] = useState('');
-  const [tMode, setTMode] = useState<TariffMode>('fixed');
-  const [tPrice, setTPrice] = useState('');
-  const [tZone, setTZone] = useState('');
-  const [tUnit, setTUnit] = useState('');
-  const [tNotes, setTNotes] = useState('');
-
-  const myContracts = contracts.filter((c) => c.courierId === courier.id);
   const activeContracts = myContracts.filter(
     (c) => c.status === 'proposed' || c.status === 'accepted'
   );
+  const completedContracts = myContracts.filter(
+    (c) => c.status === 'completed' || c.status === 'cancelled'
+  );
 
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setError(null);
-    try {
-      const dataUrl = await resizeImageToDataUrl(file, 360);
-      await onUpdateProfile({ photoUrl: dataUrl });
-      setFeedback('Fotografía actualizada.');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo cargar la foto.');
-    }
-  };
+  const points = typeof courier.points === 'number' ? courier.points : courier.completedCount * 10;
+  const currentStatusMeta = AVAILABILITY_META[courier.availabilityStatus];
+  const categoryLabels = getCourierCategories(courier)
+    .map((id) => getCategoryInfo(id).label)
+    .filter(Boolean)
+    .join(' · ');
 
-  const handleSaveProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSavingProfile(true);
+  const handleStatusChange = async (next: AvailabilityStatus) => {
+    if (next === courier.availabilityStatus) return;
     setError(null);
     setFeedback(null);
     try {
-      await onUpdateProfile({
-        publicName: publicName.trim(),
-        serviceCategory,
-        vehicle: vehicle.trim(),
-        city,
-        workZone: workZone.trim(),
-        coverageZones: coverageText
-          .split(',')
-          .map((s) => s.trim())
-          .filter(Boolean),
-        schedule: schedule.trim(),
-        description: description.trim(),
-        extraServices: extraText
-          .split(',')
-          .map((s) => s.trim())
-          .filter(Boolean),
-      });
-      setFeedback('Perfil guardado correctamente.');
+      await onChangeAvailability(next);
+      setFeedback(`Tu estado en vivo ahora es: ${AVAILABILITY_META[next].label}.`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al guardar perfil.');
+      setError(err instanceof Error ? err.message : 'No se pudo cambiar tu estado.');
+    }
+  };
+
+  const runContractAction = async (contractId: string, fn: () => Promise<void>) => {
+    setError(null);
+    setFeedback(null);
+    setBusyContractId(contractId);
+    try {
+      await fn();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo procesar la acción.');
     } finally {
-      setSavingProfile(false);
-    }
-  };
-
-  const handleAddTariff = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!tTitle.trim()) return;
-    setError(null);
-    try {
-      await onSaveTariff({
-        title: tTitle,
-        mode: tMode,
-        priceArs: tMode === 'negotiable' ? null : Number(tPrice) || null,
-        zoneName: tMode === 'zone' ? tZone : undefined,
-        unitLabel: tMode === 'distance' ? tUnit : undefined,
-        notes: tNotes || undefined,
-      });
-      setTTitle('');
-      setTPrice('');
-      setTZone('');
-      setTUnit('');
-      setTNotes('');
-      setFeedback('Tarifa agregada.');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al guardar tarifa.');
-    }
-  };
-
-  const handleAvailabilitySwitch = async () => {
-    setError(null);
-    setFeedback(null);
-    try {
-      await onToggleAvailability(!courier.isAvailable);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo cambiar la disponibilidad.');
+      setBusyContractId(null);
     }
   };
 
   return (
-    <div className="pb-24">
-      <div className="sticky top-14 z-20 flex items-center justify-between border-b border-slate-100 bg-white/95 px-4 py-2.5 backdrop-blur-md">
-        <button
-          type="button"
-          onClick={onBack}
-          className="flex h-11 items-center gap-1.5 pr-2 text-sm font-semibold text-[#1A2E4A]"
-        >
-          <ArrowLeft className="h-5 w-5" />
-          <span>Inicio</span>
-        </button>
-        <h1 className="font-display text-sm font-bold text-[#1A2E4A]">Panel de repartidor</h1>
-        <button
-          type="button"
-          onClick={onOpenJobs}
-          className="flex h-10 items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 text-xs font-semibold text-[#1A2E4A]"
-        >
-          <Briefcase className="h-3.5 w-3.5 text-[#FF6B00]" />
-          <span>Búsquedas</span>
-        </button>
-      </div>
-
-      <div className="p-4">
-        {/* Availability Control Card */}
-        <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="h-12 w-12 shrink-0 overflow-hidden rounded-2xl bg-[#1A2E4A] text-white">
-              {courier.photoUrl ? (
-                <img
-                  src={courier.photoUrl}
-                  alt={courier.publicName}
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <span className="flex h-full w-full items-center justify-center font-display text-sm font-bold">
-                  {getInitials(courier.publicName)}
-                </span>
-              )}
-            </div>
-            <div className="min-w-0">
-              <p className="truncate font-display text-sm font-bold text-[#1A2E4A]">
-                {courier.publicName}
-              </p>
-              <p
-                className={`mt-0.5 inline-flex items-center gap-1 text-xs font-bold ${
-                  courier.isAvailable ? 'text-[#16A34A]' : 'text-[#DC2626]'
-                }`}
-              >
-                {courier.isAvailable ? (
-                  <CheckCircle2 className="h-3.5 w-3.5 text-[#22C55E]" />
+    <div className="bg-[#F8FAFA] pb-24">
+      <div className="space-y-4 p-4">
+        {/* Giant 3-State Workday Selector */}
+        <section className="rounded-3xl border border-[#E2E8F0] bg-white p-4 shadow-xs">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="h-12 w-12 shrink-0 overflow-hidden rounded-2xl bg-[#063642] text-white">
+                {courier.photoUrl ? (
+                  <img
+                    src={courier.photoUrl}
+                    alt={courier.publicName}
+                    className="h-full w-full object-cover"
+                  />
                 ) : (
-                  <Clock className="h-3.5 w-3.5 text-[#EF4444]" />
+                  <span className="flex h-full w-full items-center justify-center font-display text-sm font-bold">
+                    {getInitials(courier.publicName)}
+                  </span>
                 )}
-                <span>{courier.isAvailable ? 'Disponible' : 'Ocupado'}</span>
-              </p>
+              </div>
+              <div className="min-w-0">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-[#008B8B]">
+                  Modo Trabajo
+                </p>
+                <h1 className="truncate font-display text-base font-extrabold text-[#063642]">
+                  {courier.publicName}
+                </h1>
+                <p className="truncate text-xs text-slate-500">
+                  {categoryLabels} · {courier.city}
+                </p>
+              </div>
             </div>
+
+            <button
+              type="button"
+              onClick={onOpenServices}
+              className="flex h-10 shrink-0 items-center gap-1.5 rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3 text-xs font-bold text-[#063642] hover:border-[#008B8B]"
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5 text-[#008B8B]" />
+              <span>Tarifas</span>
+            </button>
+          </div>
+
+          <div className="mt-4 border-t border-slate-100 pt-4">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                Estado de tu jornada
+              </p>
+              <span
+                className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-bold ${currentStatusMeta.bgSoftClass} ${currentStatusMeta.textClass}`}
+              >
+                {currentStatusMeta.label}
+              </span>
+            </div>
+
+            <div className="mt-3 grid grid-cols-3 gap-2.5">
+              {SHIFT_STATES.map((item) => {
+                const isActive = courier.availabilityStatus === item.status;
+                return (
+                  <button
+                    key={item.status}
+                    type="button"
+                    onClick={() => handleStatusChange(item.status)}
+                    aria-pressed={isActive}
+                    className={`flex min-h-24 flex-col items-center justify-center rounded-2xl border-2 px-2 py-3 text-center transition active:scale-95 ${
+                      isActive
+                        ? `${item.activeBg} ${item.activeBorder} shadow-md`
+                        : 'border-[#E2E8F0] bg-[#F8FAFA] text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    {item.icon}
+                    <span className="mt-2 font-display text-xs font-extrabold leading-tight">
+                      {item.label}
+                    </span>
+                    <span
+                      className={`mt-1 text-[10px] leading-tight ${
+                        isActive ? 'text-white/95' : 'text-slate-400'
+                      }`}
+                    >
+                      {item.sub}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        {/* 4 Quick Indicators: Completados, Puntaje, Posición Ranking, Estrellas */}
+        <section className="grid grid-cols-2 gap-2.5">
+          <div className="rounded-2xl border border-[#E2E8F0] bg-white p-3.5">
+            <p className="text-[11px] font-semibold text-slate-500">Trabajos completados</p>
+            <p className="mt-1 font-display text-2xl font-extrabold text-[#063642] tabular-nums">
+              {courier.completedCount}
+            </p>
           </div>
 
           <button
             type="button"
-            onClick={handleAvailabilitySwitch}
-            className={`h-10 shrink-0 rounded-xl px-3.5 text-xs font-bold text-white transition active:scale-95 ${
-              courier.isAvailable ? 'bg-[#EF4444]' : 'bg-[#22C55E]'
-            }`}
+            onClick={onOpenRanking}
+            className="rounded-2xl border border-[#F5A623]/40 bg-[#F5A623]/10 p-3.5 text-left transition hover:bg-[#F5A623]/15 active:scale-95"
           >
-            {courier.isAvailable ? 'Pasar a Ocupado' : 'Pasar a Disponible'}
+            <p className="text-[11px] font-semibold text-[#063642]">Puntaje actual</p>
+            <div className="mt-1 flex items-center gap-1.5 font-display text-2xl font-extrabold text-[#063642] tabular-nums">
+              <Flame className="h-5 w-5 text-[#F5A623]" />
+              <span>{points}</span>
+              <span className="text-xs font-bold text-[#008B8B]">pts</span>
+            </div>
           </button>
-        </div>
+
+          <button
+            type="button"
+            onClick={onOpenRanking}
+            className="rounded-2xl border border-[#E2E8F0] bg-white p-3.5 text-left transition hover:border-[#008B8B] active:scale-95"
+          >
+            <p className="text-[11px] font-semibold text-slate-500">Posición en ranking</p>
+            <div className="mt-1 flex items-center gap-1.5 font-display text-2xl font-extrabold text-[#063642] tabular-nums">
+              <Trophy className="h-5 w-5 text-[#F5A623]" />
+              <span>{rankingPosition > 0 ? `#${rankingPosition}` : '—'}</span>
+            </div>
+          </button>
+
+          <div className="rounded-2xl border border-[#E2E8F0] bg-white p-3.5">
+            <p className="text-[11px] font-semibold text-slate-500">Promedio de estrellas</p>
+            <div className="mt-1 flex items-center gap-1.5 font-display text-2xl font-extrabold text-[#063642] tabular-nums">
+              <Star className="h-5 w-5 fill-[#F5A623] text-[#F5A623]" />
+              <span>{courier.ratingCount > 0 ? courier.ratingAverage.toFixed(1) : '—'}</span>
+            </div>
+          </div>
+        </section>
 
         {error && (
-          <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-medium text-red-700">
+          <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-medium text-red-700">
             {error}
           </div>
         )}
         {feedback && (
-          <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-medium text-emerald-700">
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-semibold text-emerald-700">
             {feedback}
           </div>
         )}
 
-        {/* Section Tabs */}
-        <div className="mt-4 grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1">
-          <button
-            type="button"
-            onClick={() => setTab('contracts')}
-            className={`h-10 rounded-lg text-xs font-bold transition ${
-              tab === 'contracts' ? 'bg-white text-[#1A2E4A] shadow-xs' : 'text-slate-600'
-            }`}
-          >
-            Mandados ({activeContracts.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab('tariffs')}
-            className={`h-10 rounded-lg text-xs font-bold transition ${
-              tab === 'tariffs' ? 'bg-white text-[#1A2E4A] shadow-xs' : 'text-slate-600'
-            }`}
-          >
-            Tarifas ({courier.tariffs.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab('profile')}
-            className={`h-10 rounded-lg text-xs font-bold transition ${
-              tab === 'profile' ? 'bg-white text-[#1A2E4A] shadow-xs' : 'text-slate-600'
-            }`}
-          >
-            Mi perfil
-          </button>
-        </div>
+        {/* Active Contracts */}
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="font-display text-base font-extrabold text-[#063642]">
+              Pedidos Activos ({activeContracts.length})
+            </h2>
+          </div>
 
-        {tab === 'contracts' && (
-          <div className="mt-4 space-y-3">
-            {myContracts.length === 0 ? (
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-center text-xs text-slate-500">
-                Cuando un cliente o comercio te envíe una propuesta de mandado por chat, aparecerá
-                acá para que puedas aceptarla o completarla.
-              </div>
-            ) : (
-              myContracts.map((ct) => (
+          {activeContracts.length === 0 ? (
+            <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 text-center text-xs leading-relaxed text-slate-500">
+              No tenés contrataciones activas en este momento. Cuando un cliente o comercio te
+              proponga un servicio desde el chat, aparecerá acá.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {activeContracts.map((ct) => {
+                const isBusy = busyContractId === ct.id;
+                return (
+                  <div
+                    key={ct.id}
+                    className="space-y-3 rounded-2xl border border-[#E2E8F0] bg-white p-4 shadow-xs"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-display text-sm font-bold text-[#063642]">
+                          {ct.clientName}
+                        </p>
+                        <p className="mt-0.5 text-xs text-slate-600">{ct.description}</p>
+                        <p className="mt-1 font-mono text-xs font-bold text-[#063642] tabular-nums">
+                          {formatARS(ct.agreedPriceArs)} ·{' '}
+                          {ct.modality === 'recurrente' ? 'Recurrente' : 'Puntual'}
+                        </p>
+                      </div>
+                      <span
+                        className={`shrink-0 rounded-md px-2 py-0.5 text-[11px] font-bold ${
+                          ct.status === 'accepted'
+                            ? 'bg-[#EF4444]/15 text-[#B91C1C]'
+                            : 'bg-[#F5A623]/20 text-[#9A5B00]'
+                        }`}
+                      >
+                        {ct.status === 'accepted' ? 'En curso' : 'Propuesto'}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col gap-2 pt-1">
+                      {ct.status === 'proposed' && (
+                        <button
+                          type="button"
+                          disabled={isBusy}
+                          onClick={() =>
+                            runContractAction(ct.id, () => onAcceptContract(ct.id))
+                          }
+                          className="flex h-11 w-full items-center justify-center gap-1.5 rounded-xl bg-[#22C55E] px-3 text-xs font-bold text-white transition active:scale-[0.98] disabled:opacity-60"
+                        >
+                          <CheckCircle2 className="h-4 w-4" />
+                          <span>Confirmar y aceptar trabajo</span>
+                        </button>
+                      )}
+
+                      {ct.status === 'accepted' && (
+                        <button
+                          type="button"
+                          disabled={isBusy}
+                          onClick={() =>
+                            runContractAction(ct.id, () => onCompleteContract(ct.id))
+                          }
+                          className="flex h-11 w-full items-center justify-center gap-1.5 rounded-xl bg-[#008B8B] px-3 text-xs font-bold text-white transition active:scale-[0.98] disabled:opacity-60"
+                        >
+                          <FileCheck2 className="h-4 w-4" />
+                          <span>Marcar trabajo como finalizado</span>
+                        </button>
+                      )}
+
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => onOpenChat(ct.conversationId)}
+                          className="h-10 flex-1 rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3 text-xs font-semibold text-[#063642]"
+                        >
+                          Ir al chat
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isBusy}
+                          onClick={() =>
+                            runContractAction(ct.id, () => onCancelContract(ct.id))
+                          }
+                          className="flex h-10 items-center justify-center gap-1 rounded-xl border border-[#E2E8F0] bg-white px-3 text-xs font-semibold text-slate-600"
+                        >
+                          <XCircle className="h-4 w-4" />
+                          <span>Cancelar</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        {/* Recent History */}
+        {completedContracts.length > 0 && (
+          <section className="space-y-2.5 pt-2">
+            <h3 className="font-display text-sm font-bold text-slate-500">
+              Historial reciente
+            </h3>
+            <div className="space-y-2">
+              {completedContracts.slice(0, 6).map((ct) => (
                 <div
                   key={ct.id}
-                  className="rounded-2xl border border-slate-200 bg-white p-4 space-y-2.5"
+                  className="flex items-center justify-between gap-3 rounded-2xl border border-[#E2E8F0] bg-white p-3"
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="font-display text-sm font-bold text-[#1A2E4A]">
-                        {ct.clientName}
-                      </p>
-                      <p className="mt-0.5 text-xs text-slate-600">{ct.description}</p>
-                      <p className="mt-1 font-mono text-xs font-semibold text-[#1A2E4A] tabular-nums">
-                        {formatARS(ct.agreedPriceArs)} ·{' '}
-                        {ct.modality === 'recurrente' ? 'Recurrente' : 'Puntual'}
-                      </p>
-                    </div>
-                    <span className="shrink-0 rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-700">
-                      {ct.status === 'proposed' && 'Propuesto'}
-                      {ct.status === 'accepted' && 'En curso'}
-                      {ct.status === 'completed' && 'Completado'}
-                      {ct.status === 'cancelled' && 'Cancelado'}
-                    </span>
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-bold text-[#063642]">{ct.clientName}</p>
+                    <p className="truncate text-[11px] text-slate-500">{ct.description}</p>
                   </div>
-
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    {ct.status === 'proposed' && (
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          setError(null);
-                          try {
-                            await onAcceptContract(ct.id);
-                          } catch (err) {
-                            setError(err instanceof Error ? err.message : 'Error');
-                          }
-                        }}
-                        className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#22C55E] px-3 text-xs font-bold text-white"
-                      >
-                        <CheckCircle2 className="h-4 w-4" />
-                        <span>Aceptar mandado</span>
-                      </button>
-                    )}
-
-                    {ct.status === 'accepted' && (
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          setError(null);
-                          try {
-                            await onCompleteContract(ct.id);
-                          } catch (err) {
-                            setError(err instanceof Error ? err.message : 'Error');
-                          }
-                        }}
-                        className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#1A2E4A] px-3 text-xs font-bold text-white"
-                      >
-                        <FileCheck2 className="h-4 w-4" />
-                        <span>Mandado completado</span>
-                      </button>
-                    )}
-
-                    {(ct.status === 'proposed' || ct.status === 'accepted') && (
-                      <button
-                        type="button"
-                        onClick={() => onCancelContract(ct.id)}
-                        className="flex h-10 items-center justify-center gap-1 rounded-xl border border-slate-200 px-3 text-xs font-semibold text-slate-600"
-                      >
-                        <XCircle className="h-4 w-4" />
-                        <span>Cancelar</span>
-                      </button>
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={() => onOpenChat(ct.conversationId)}
-                      className="h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-semibold text-[#1A2E4A]"
-                    >
-                      Ir al chat
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        )}
-
-        {tab === 'tariffs' && (
-          <div className="mt-4 space-y-4">
-            <form
-              onSubmit={handleAddTariff}
-              className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4"
-            >
-              <h2 className="font-display text-sm font-bold text-[#1A2E4A]">
-                Agregar nueva tarifa
-              </h2>
-              <div>
-                <label className="block text-xs font-semibold text-slate-700">
-                  Nombre de la tarifa
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={tTitle}
-                  onChange={(e) => setTTitle(e.target.value)}
-                  placeholder="Ej: Envío estándar Centro"
-                  className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-[#FF6B00] focus:bg-white"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2.5">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700">Modalidad</label>
-                  <select
-                    value={tMode}
-                    onChange={(e) => setTMode(e.target.value as TariffMode)}
-                    className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-2.5 text-sm outline-none focus:border-[#FF6B00]"
+                  <span
+                    className={`shrink-0 rounded-md px-2 py-0.5 text-[10px] font-bold ${
+                      ct.status === 'completed'
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : 'bg-slate-200 text-slate-600'
+                    }`}
                   >
-                    {Object.entries(TARIFF_MODE_LABELS).map(([k, label]) => (
-                      <option key={k} value={k}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {tMode !== 'negotiable' && (
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700">
-                      Precio (ARS)
-                    </label>
-                    <input
-                      type="number"
-                      required
-                      min={100}
-                      step={50}
-                      value={tPrice}
-                      onChange={(e) => setTPrice(e.target.value)}
-                      placeholder="2500"
-                      className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-[#FF6B00] focus:bg-white tabular-nums"
-                    />
-                  </div>
-                )}
-              </div>
-
-              {tMode === 'zone' && (
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700">
-                    Zona / barrio específico
-                  </label>
-                  <input
-                    type="text"
-                    value={tZone}
-                    onChange={(e) => setTZone(e.target.value)}
-                    placeholder="Ej: Corradi / Malvinas"
-                    className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-[#FF6B00]"
-                  />
-                </div>
-              )}
-
-              {tMode === 'distance' && (
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700">Unidad</label>
-                  <input
-                    type="text"
-                    value={tUnit}
-                    onChange={(e) => setTUnit(e.target.value)}
-                    placeholder="Ej: por km recorrido"
-                    className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-[#FF6B00]"
-                  />
-                </div>
-              )}
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700">
-                  Aclaración (opcional)
-                </label>
-                <input
-                  type="text"
-                  value={tNotes}
-                  onChange={(e) => setTNotes(e.target.value)}
-                  placeholder="Ej: Hasta 5 kg, entrega en el día"
-                  className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-[#FF6B00]"
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="flex h-11 w-full items-center justify-center gap-1.5 rounded-xl bg-[#FF6B00] text-xs font-bold text-white"
-              >
-                <Plus className="h-4 w-4" />
-                <span>Guardar tarifa</span>
-              </button>
-            </form>
-
-            <div className="space-y-2.5">
-              {courier.tariffs.map((t) => (
-                <div
-                  key={t.id}
-                  className="flex items-start justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-3.5"
-                >
-                  <div>
-                    <p className="text-sm font-bold text-slate-900">{t.title}</p>
-                    <p className="text-xs text-slate-500">
-                      {TARIFF_MODE_LABELS[t.mode]}
-                      {t.zoneName ? ` · ${t.zoneName}` : ''}
-                      {t.unitLabel ? ` · ${t.unitLabel}` : ''}
-                    </p>
-                    {t.notes && <p className="mt-0.5 text-xs text-slate-500">{t.notes}</p>}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs font-bold text-[#1A2E4A] tabular-nums">
-                      {formatARS(t.priceArs)}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => onDeleteTariff(t.id)}
-                      className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600"
-                      aria-label="Eliminar tarifa"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
+                    {ct.status === 'completed' ? 'Finalizado (+10 pts)' : 'Cancelado'}
+                  </span>
                 </div>
               ))}
             </div>
-          </div>
-        )}
-
-        {tab === 'profile' && (
-          <form onSubmit={handleSaveProfile} className="mt-4 space-y-3.5">
-            <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3.5">
-              <label className="flex h-11 cursor-pointer items-center gap-2 rounded-xl bg-slate-100 px-3.5 text-xs font-bold text-[#1A2E4A] hover:bg-slate-200">
-                <Camera className="h-4 w-4 text-[#FF6B00]" />
-                <span>Subir fotografía de perfil</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handlePhotoUpload}
-                  className="hidden"
-                />
-              </label>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700">Nombre público</label>
-              <input
-                type="text"
-                required
-                value={publicName}
-                onChange={(e) => setPublicName(e.target.value)}
-                className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-[#FF6B00]"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-2.5">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700">Categoría</label>
-                <select
-                  value={serviceCategory}
-                  onChange={(e) => setServiceCategory(e.target.value as ServiceCategory)}
-                  className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-2.5 text-sm outline-none focus:border-[#FF6B00]"
-                >
-                  {Object.values(CATEGORY_INFO).map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-700">Ciudad</label>
-                <select
-                  value={city}
-                  onChange={(e) => setCity(e.target.value as CityName)}
-                  className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-2.5 text-sm outline-none focus:border-[#FF6B00]"
-                >
-                  {CITIES.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700">Vehículo</label>
-              <input
-                type="text"
-                required
-                value={vehicle}
-                onChange={(e) => setVehicle(e.target.value)}
-                className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-[#FF6B00]"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700">
-                Zona principal de trabajo
-              </label>
-              <input
-                type="text"
-                required
-                value={workZone}
-                onChange={(e) => setWorkZone(e.target.value)}
-                className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-[#FF6B00]"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700">
-                Zonas de cobertura (separadas por coma)
-              </label>
-              <input
-                type="text"
-                value={coverageText}
-                onChange={(e) => setCoverageText(e.target.value)}
-                placeholder="Centro, Pueblo de Luis, Corradi"
-                className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-[#FF6B00]"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700">Horarios</label>
-              <input
-                type="text"
-                value={schedule}
-                onChange={(e) => setSchedule(e.target.value)}
-                placeholder="Lun a Sáb 08:30 a 21:00"
-                className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-[#FF6B00]"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700">
-                Servicios adicionales (separados por coma)
-              </label>
-              <input
-                type="text"
-                value={extraText}
-                onChange={(e) => setExtraText(e.target.value)}
-                placeholder="Cobro en destino, Espera en trámites"
-                className="mt-1 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:border-[#FF6B00]"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700">Descripción</label>
-              <textarea
-                rows={3}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm outline-none focus:border-[#FF6B00]"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={savingProfile}
-              className="h-12 w-full rounded-xl bg-[#FF6B00] text-sm font-bold text-white disabled:opacity-60"
-            >
-              {savingProfile ? 'Guardando cambios...' : 'Guardar perfil'}
-            </button>
-          </form>
+          </section>
         )}
       </div>
     </div>

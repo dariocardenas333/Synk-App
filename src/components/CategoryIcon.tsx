@@ -1,5 +1,20 @@
 import React from 'react';
-import { Bike, Car, PackageCheck, Truck } from 'lucide-react';
+import {
+  Bike,
+  Bug,
+  Car,
+  Droplets,
+  Fan,
+  Hammer,
+  KeyRound,
+  Laptop,
+  PackageCheck,
+  PawPrint,
+  Scissors,
+  Truck,
+  Wrench,
+  Zap,
+} from 'lucide-react';
 import type { ServiceCategory } from '../types/synk';
 
 interface CategoryIconProps {
@@ -34,6 +49,26 @@ export const CategoryIcon: React.FC<CategoryIconProps> = ({ category, className 
       return <Car className={className} aria-hidden="true" />;
     case 'flete':
       return <Truck className={className} aria-hidden="true" />;
+    case 'auxilio_vehicular':
+      return <Wrench className={className} aria-hidden="true" />;
+    case 'urgencias_cerrajeria':
+      return <KeyRound className={className} aria-hidden="true" />;
+    case 'jardineria_poda':
+      return <Scissors className={className} aria-hidden="true" />;
+    case 'fumigacion_plagas':
+      return <Bug className={className} aria-hidden="true" />;
+    case 'limpieza_terrenos':
+      return <Hammer className={className} aria-hidden="true" />;
+    case 'plomeria_gas':
+      return <Droplets className={className} aria-hidden="true" />;
+    case 'electricidad':
+      return <Zap className={className} aria-hidden="true" />;
+    case 'electrodomesticos_clima':
+      return <Fan className={className} aria-hidden="true" />;
+    case 'cuidado_mascotas':
+      return <PawPrint className={className} aria-hidden="true" />;
+    case 'limpieza_soporte_pc':
+      return <Laptop className={className} aria-hidden="true" />;
     default:
       return <PackageCheck className={className} aria-hidden="true" />;
   }

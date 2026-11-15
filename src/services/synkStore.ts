@@ -1,6 +1,7 @@
 import {
   createUserWithEmailAndPassword,
   onAuthStateChanged,
+  sendPasswordResetEmail,
   signInAnonymously,
   signInWithEmailAndPassword,
   signOut,
@@ -21,14 +22,9 @@ import {
   where,
   writeBatch,
 } from 'firebase/firestore';
-import {
-  DEMO_COURIERS,
-  DEMO_JOB_OPPORTUNITIES,
-  DEMO_MERCHANTS,
-  DEMO_RATINGS,
-} from '../data/demoData';
 import { auth, db, FIRESTORE_COLLECTIONS, isFirebaseConfigured } from '../firebase/config';
 import type {
+  AvailabilityStatus,
   ChatMessage,
   CityName,
   Contract,
@@ -41,7 +37,7 @@ import type {
   ServiceCategory,
   TariffItem,
 } from '../types/synk';
-import { generateRandomNickname, normalizeNickname } from '../utils/formatters';
+import { computeCourierPoints, generateRandomNickname, normalizeNickname } from '../utils/formatters';
 
 const STORAGE_KEYS = {
   GUEST_PROFILE: 'synk_guest_profile_v1',
@@ -55,7 +51,7 @@ const STORAGE_KEYS = {
   LOCAL_CONTRACTS: 'synk_local_contracts_v1',
   LOCAL_RATINGS: 'synk_local_ratings_v1',
   LOCAL_JOBS: 'synk_local_jobs_v1',
-  DEMO_OVERRIDES: 'synk_demo_overrides_v1',
+  FIRST_JOB_PREFIX: 'alamano_first_job_celebrated_',
 } as const;
 
 interface LocalAccount {
@@ -86,6 +82,7 @@ export interface CourierRegistrationInput {
   email: string;
   password: string;
   serviceCategory: ServiceCategory;
+  serviceCategories?: ServiceCategory[];
   vehicle: string;
   city: CityName;
   workZone: string;
@@ -107,6 +104,7 @@ export interface SynkStateSnapshot {
   ready: boolean;
   firebaseConnected: boolean;
   needsOnboarding: boolean;
+  firstJobCelebrationPending: boolean;
   session: CurrentSession;
   couriers: CourierPublicProfile[];
   merchants: MerchantProfile[];
@@ -167,6 +165,14 @@ function computeStartingPrice(tariffs: TariffItem[]): number | null {
   return Math.min(...prices);
 }
 
+function resolveAvailabilityStatus(data: Record<string, unknown>): AvailabilityStatus {
+  const raw = data.availabilityStatus;
+  if (raw === 'available' || raw === 'busy' || raw === 'offline') {
+    return raw;
+  }
+  return data.isAvailable === false ? 'busy' : 'available';
+}
+
 class SynkStore {
   private listeners = new Set<(state: SynkStateSnapshot) => void>();
   private channel: BroadcastChannel | null = null;
@@ -178,6 +184,7 @@ class SynkStore {
     ready: false,
     firebaseConnected: isFirebaseConfigured,
     needsOnboarding: false,
+    firstJobCelebrationPending: false,
     session: {
       uid: 'guest-pending',
       role: 'client',
@@ -185,14 +192,14 @@ class SynkStore {
       city: 'Trelew',
       isAnonymous: true,
     },
-    couriers: [...DEMO_COURIERS],
-    merchants: [...DEMO_MERCHANTS],
+    couriers: [],
+    merchants: [],
     favorites: [],
     conversations: [],
     messagesByConv: {},
     contracts: [],
-    ratings: [...DEMO_RATINGS],
-    jobOpportunities: [...DEMO_JOB_OPPORTUNITIES],
+    ratings: [],
+    jobOpportunities: [],
   };
 
   subscribe(listener: (state: SynkStateSnapshot) => void): () => void {
@@ -241,14 +248,15 @@ class SynkStore {
 
   private loadLocalCollections(): void {
     const guest = this.ensureGuestRecord();
-    const localCouriers = readJSON<CourierPublicProfile[]>(STORAGE_KEYS.LOCAL_COURIERS, []);
-    const demoOverrides = readJSON<Record<string, Partial<CourierPublicProfile>>>(
-      STORAGE_KEYS.DEMO_OVERRIDES,
-      {}
-    );
-    const mergedDemoCouriers = DEMO_COURIERS.map((c) => {
-      const ov = demoOverrides[c.id];
-      return ov ? { ...c, ...ov } : c;
+    const rawCouriers = readJSON<CourierPublicProfile[]>(STORAGE_KEYS.LOCAL_COURIERS, []);
+    const localCouriers = rawCouriers.map((c) => {
+      const availabilityStatus = resolveAvailabilityStatus(c as unknown as Record<string, unknown>);
+      return {
+        ...c,
+        availabilityStatus,
+        isAvailable: availabilityStatus === 'available',
+        points: typeof c.points === 'number' ? c.points : c.completedCount * 10,
+      };
     });
 
     const localMerchants = readJSON<MerchantProfile[]>(STORAGE_KEYS.LOCAL_MERCHANTS, []);
@@ -283,16 +291,14 @@ class SynkStore {
       firebaseConnected: false,
       needsOnboarding: session.role === 'client' && !guest.onboarded,
       session,
-      couriers: [...localCouriers, ...mergedDemoCouriers],
-      merchants: [...localMerchants, ...DEMO_MERCHANTS],
+      couriers: localCouriers,
+      merchants: localMerchants,
       favorites: userFavorites,
       conversations: userConversations,
       messagesByConv: localMessages,
       contracts: userContracts,
-      ratings: [...localRatings, ...DEMO_RATINGS],
-      jobOpportunities: [...localJobs, ...DEMO_JOB_OPPORTUNITIES].sort((a, b) =>
-        b.createdAt.localeCompare(a.createdAt)
-      ),
+      ratings: localRatings,
+      jobOpportunities: [...localJobs].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     };
     this.emit();
   }
@@ -302,7 +308,7 @@ class SynkStore {
     this.initialized = true;
 
     if (typeof BroadcastChannel !== 'undefined') {
-      this.channel = new BroadcastChannel('synk_sync');
+      this.channel = new BroadcastChannel('alamano_sync');
       this.channel.onmessage = () => {
         if (!isFirebaseConfigured) {
           this.loadLocalCollections();
@@ -358,6 +364,7 @@ class SynkStore {
           }
         } catch (err) {
           console.error('Error leyendo guest_clients:', err);
+          needsOnboarding = !guest.onboarded;
         }
       } else {
         try {
@@ -419,11 +426,6 @@ class SynkStore {
     if (!db) return;
     this.clearFirebaseListeners();
 
-    const demoOverrides = readJSON<Record<string, Partial<CourierPublicProfile>>>(
-      STORAGE_KEYS.DEMO_OVERRIDES,
-      {}
-    );
-
     // 1. Public Couriers + Tariffs subcollection
     const unsubCouriers = onSnapshot(
       collection(db, FIRESTORE_COLLECTIONS.COURIERS_PUBLIC),
@@ -449,11 +451,27 @@ class SynkStore {
             } catch {
               tariffs = [];
             }
+            const availabilityStatus = resolveAvailabilityStatus(data as Record<string, unknown>);
+            const completedCount = Number(data.completedCount || 0);
+            const primaryCat = (data.serviceCategory as ServiceCategory) || 'motomandado';
+            const serviceCategories: ServiceCategory[] =
+              Array.isArray(data.serviceCategories) && data.serviceCategories.length > 0
+                ? (data.serviceCategories as ServiceCategory[])
+                : [primaryCat];
+            const courierRatings = this.state.ratings.filter((r) => r.courierId === d.id);
+            const points = computeCourierPoints(
+              completedCount,
+              courierRatings,
+              typeof data.points === 'number' ? data.points : undefined
+            );
+
             return {
               id: d.id,
-              publicName: data.publicName || 'Repartidor',
+              publicName: data.publicName || 'Prestador',
               photoUrl: data.photoUrl || undefined,
-              serviceCategory: (data.serviceCategory as ServiceCategory) || 'motomandado',
+              contactPhone: data.contactPhone || undefined,
+              serviceCategory: serviceCategories[0] || primaryCat,
+              serviceCategories,
               vehicle: data.vehicle || '',
               city: (data.city as CityName) || 'Trelew',
               workZone: data.workZone || '',
@@ -465,20 +483,31 @@ class SynkStore {
                 typeof data.startingPriceArs === 'number'
                   ? data.startingPriceArs
                   : computeStartingPrice(tariffs),
-              isAvailable: data.isAvailable !== false,
+              availabilityStatus,
+              isAvailable: availabilityStatus === 'available',
               activeContractId: data.activeContractId || null,
-              ratingAverage: Number(data.ratingAverage || 0),
-              ratingCount: Number(data.ratingCount || 0),
-              completedCount: Number(data.completedCount || 0),
+              ratingAverage:
+                courierRatings.length > 0
+                  ? Number(
+                      (
+                        courierRatings.reduce((acc, r) => acc + r.score, 0) /
+                        courierRatings.length
+                      ).toFixed(2)
+                    )
+                  : Number(data.ratingAverage || 0),
+              ratingCount:
+                courierRatings.length > 0
+                  ? courierRatings.length
+                  : Number(data.ratingCount || 0),
+              completedCount,
+              points,
               tariffs,
-              isDemo: false,
               createdAt: data.createdAt?.toDate?.()?.toISOString?.() || new Date().toISOString(),
               updatedAt: data.updatedAt?.toDate?.()?.toISOString?.() || new Date().toISOString(),
             };
           })
         );
-        const mergedDemo = DEMO_COURIERS.map((c) => (demoOverrides[c.id] ? { ...c, ...demoOverrides[c.id] } : c));
-        this.state = { ...this.state, couriers: [...realCouriers, ...mergedDemo] };
+        this.state = { ...this.state, couriers: realCouriers };
         this.emit();
       },
       (err) => console.error('Snapshot couriers_public error:', err)
@@ -499,12 +528,11 @@ class SynkStore {
             city: (data.city as CityName) || 'Trelew',
             category: data.category || 'Otro',
             description: data.description || '',
-            isDemo: false,
             createdAt: data.createdAt?.toDate?.()?.toISOString?.() || new Date().toISOString(),
             updatedAt: data.updatedAt?.toDate?.()?.toISOString?.() || new Date().toISOString(),
           };
         });
-        this.state = { ...this.state, merchants: [...realMerchants, ...DEMO_MERCHANTS] };
+        this.state = { ...this.state, merchants: realMerchants };
         this.emit();
       },
       (err) => console.error('Snapshot merchants error:', err)
@@ -544,7 +572,10 @@ class SynkStore {
               courierCategory: data.courierCategory || 'motomandado',
               courierPhotoUrl: data.courierPhotoUrl,
               lastMessage: data.lastMessage || '',
-              lastMessageAt: data.lastMessageAt?.toDate?.()?.toISOString?.() || data.lastMessageAt || new Date().toISOString(),
+              lastMessageAt:
+                data.lastMessageAt?.toDate?.()?.toISOString?.() ||
+                data.lastMessageAt ||
+                new Date().toISOString(),
               createdAt: data.createdAt?.toDate?.()?.toISOString?.() || new Date().toISOString(),
               updatedAt: data.updatedAt?.toDate?.()?.toISOString?.() || new Date().toISOString(),
             };
@@ -556,44 +587,48 @@ class SynkStore {
 
         convs.forEach((conv) => {
           const msgQuery = query(
-            collection(db!, FIRESTORE_COLLECTIONS.CONVERSATIONS, conv.id, FIRESTORE_COLLECTIONS.MESSAGES_SUBCOLLECTION),
+            collection(
+              db!,
+              FIRESTORE_COLLECTIONS.CONVERSATIONS,
+              conv.id,
+              FIRESTORE_COLLECTIONS.MESSAGES_SUBCOLLECTION
+            ),
             orderBy('createdAt', 'asc')
           );
-          const unsubMsgs = onSnapshot(msgQuery, (msgSnap) => {
-            const msgs: ChatMessage[] = msgSnap.docs.map((md) => {
-              const m = md.data();
-              return {
-                id: md.id,
-                conversationId: conv.id,
-                senderId: m.senderId,
-                senderName: m.senderName,
-                senderRole: m.senderRole,
-                text: m.text,
-                messageType: m.messageType || 'text',
-                contractId: m.contractId,
-                createdAt: m.createdAt?.toDate?.()?.toISOString?.() || m.createdAt || new Date().toISOString(),
+          const unsubMsgs = onSnapshot(
+            msgQuery,
+            (msgSnap) => {
+              const msgs: ChatMessage[] = msgSnap.docs.map((md) => {
+                const m = md.data();
+                return {
+                  id: md.id,
+                  conversationId: conv.id,
+                  senderId: m.senderId,
+                  senderName: m.senderName,
+                  senderRole: m.senderRole,
+                  text: m.text,
+                  messageType: m.messageType || 'text',
+                  contractId: m.contractId,
+                  createdAt:
+                    m.createdAt?.toDate?.()?.toISOString?.() ||
+                    m.createdAt ||
+                    new Date().toISOString(),
+                };
+              });
+              this.state = {
+                ...this.state,
+                messagesByConv: { ...this.state.messagesByConv, [conv.id]: msgs },
               };
-            });
-            this.state = {
-              ...this.state,
-              messagesByConv: { ...this.state.messagesByConv, [conv.id]: msgs },
-            };
-            this.emit();
-          },
-          (err) => console.error('Snapshot messages error:', err)
+              this.emit();
+            },
+            (err) => console.error('Snapshot messages error:', err)
           );
           this.fbConvUnsubs.push(unsubMsgs);
         });
 
-        // Merge any local Demo conversations for demo couriers
-        const localConvs = readJSON<Conversation[]>(STORAGE_KEYS.LOCAL_CONVERSATIONS, []).filter(
-          (c) => c.participantIds.includes(uid) && c.courierId.startsWith('demo-')
-        );
-        const localMsgs = readJSON<Record<string, ChatMessage[]>>(STORAGE_KEYS.LOCAL_MESSAGES, {});
         this.state = {
           ...this.state,
-          conversations: [...convs, ...localConvs].sort((a, b) => b.lastMessageAt.localeCompare(a.lastMessageAt)),
-          messagesByConv: { ...localMsgs, ...this.state.messagesByConv },
+          conversations: convs,
         };
         this.emit();
       },
@@ -634,7 +669,23 @@ class SynkStore {
             createdAt: r.createdAt?.toDate?.()?.toISOString?.() || new Date().toISOString(),
           };
         });
-        this.state = { ...this.state, ratings: [...realRatings, ...DEMO_RATINGS] };
+        const enrichedCouriers = this.state.couriers.map((c) => {
+          const cRatings = realRatings.filter((r) => r.courierId === c.id);
+          const nextPoints = computeCourierPoints(c.completedCount, cRatings, c.points);
+          if (cRatings.length === 0) {
+            return { ...c, points: nextPoints };
+          }
+          const avg = Number(
+            (cRatings.reduce((acc, r) => acc + r.score, 0) / cRatings.length).toFixed(2)
+          );
+          return {
+            ...c,
+            ratingAverage: avg,
+            ratingCount: cRatings.length,
+            points: nextPoints,
+          };
+        });
+        this.state = { ...this.state, ratings: realRatings, couriers: enrichedCouriers };
         this.emit();
       },
       (err) => console.error('Snapshot ratings error:', err)
@@ -659,15 +710,12 @@ class SynkStore {
             modality: j.modality || 'puntual',
             paySummary: j.paySummary || 'A convenir',
             status: j.status || 'open',
-            isDemo: false,
             createdAt: j.createdAt?.toDate?.()?.toISOString?.() || new Date().toISOString(),
           };
         });
         this.state = {
           ...this.state,
-          jobOpportunities: [...realJobs, ...DEMO_JOB_OPPORTUNITIES].sort((a, b) =>
-            b.createdAt.localeCompare(a.createdAt)
-          ),
+          jobOpportunities: realJobs.sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
         };
         this.emit();
       },
@@ -678,8 +726,6 @@ class SynkStore {
 
   private mergeFirebaseContracts(docs: Array<Record<string, unknown>>): void {
     const map = new Map<string, Contract>();
-    const localContracts = readJSON<Contract[]>(STORAGE_KEYS.LOCAL_CONTRACTS, []);
-    localContracts.forEach((c) => map.set(c.id, c));
     this.state.contracts.forEach((c) => map.set(c.id, c));
     docs.forEach((raw) => {
       const id = String(raw.id);
@@ -718,7 +764,13 @@ class SynkStore {
     this.emit();
   }
 
-  // ---- GUEST ACTIONS ----
+  // ---- GUEST & ONBOARDING ACTIONS ----
+  async enterAsGuestClient(): Promise<void> {
+    const guest = this.ensureGuestRecord();
+    const nickname = guest.nickname || generateRandomNickname();
+    await this.completeGuestOnboarding(nickname, guest.city || 'Trelew');
+  }
+
   async completeGuestOnboarding(nicknameInput: string, city?: CityName): Promise<void> {
     const nickname = normalizeNickname(nicknameInput);
     const guest = this.ensureGuestRecord();
@@ -787,6 +839,12 @@ class SynkStore {
     this.emit();
   }
 
+  dismissFirstJobCelebration(): void {
+    if (!this.state.firstJobCelebrationPending) return;
+    this.state = { ...this.state, firstJobCelebrationPending: false };
+    this.emit();
+  }
+
   // ---- AUTH: REGISTER & LOGIN ----
   async registerCourier(input: CourierRegistrationInput): Promise<void> {
     const now = new Date().toISOString();
@@ -806,10 +864,16 @@ class SynkStore {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
+      const categories =
+        input.serviceCategories && input.serviceCategories.length > 0
+          ? input.serviceCategories
+          : [input.serviceCategory];
       batch.set(doc(db, FIRESTORE_COLLECTIONS.COURIERS_PUBLIC, uid), {
         id: uid,
         publicName: input.publicName.trim() || `${input.firstName.trim()} ${input.lastName.trim()}`,
-        serviceCategory: input.serviceCategory,
+        contactPhone: input.phone.trim(),
+        serviceCategory: categories[0],
+        serviceCategories: categories,
         vehicle: input.vehicle.trim(),
         city: input.city,
         workZone: input.workZone.trim(),
@@ -821,11 +885,13 @@ class SynkStore {
         description: input.description.trim(),
         extraServices: [],
         startingPriceArs: null,
+        availabilityStatus: 'available',
         isAvailable: true,
         activeContractId: null,
         ratingAverage: 0,
         ratingCount: 0,
         completedCount: 0,
+        points: 0,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
@@ -833,7 +899,7 @@ class SynkStore {
       return;
     }
 
-    // Local persistence mode
+    // Local persistence mode (offline fallback)
     const accounts = readJSON<LocalAccount[]>(STORAGE_KEYS.LOCAL_ACCOUNTS, []);
     if (accounts.some((a) => a.email === email)) {
       throw new Error('Ya existe una cuenta registrada con ese correo electrónico.');
@@ -853,10 +919,16 @@ class SynkStore {
 
     const couriers = readJSON<CourierPublicProfile[]>(STORAGE_KEYS.LOCAL_COURIERS, []);
     const publicName = input.publicName.trim() || `${input.firstName.trim()} ${input.lastName.trim()}`;
+    const categories =
+      input.serviceCategories && input.serviceCategories.length > 0
+        ? input.serviceCategories
+        : [input.serviceCategory];
     const newCourier: CourierPublicProfile = {
       id: uid,
       publicName,
-      serviceCategory: input.serviceCategory,
+      contactPhone: input.phone.trim(),
+      serviceCategory: categories[0],
+      serviceCategories: categories,
       vehicle: input.vehicle.trim(),
       city: input.city,
       workZone: input.workZone.trim(),
@@ -868,13 +940,14 @@ class SynkStore {
       description: input.description.trim(),
       extraServices: [],
       startingPriceArs: null,
+      availabilityStatus: 'available',
       isAvailable: true,
       activeContractId: null,
       ratingAverage: 0,
       ratingCount: 0,
       completedCount: 0,
+      points: 0,
       tariffs: [],
-      isDemo: false,
       createdAt: now,
       updatedAt: now,
     };
@@ -952,7 +1025,6 @@ class SynkStore {
       city: input.city,
       category: input.category,
       description: '',
-      isDemo: false,
       createdAt: now,
       updatedAt: now,
     };
@@ -1024,6 +1096,21 @@ class SynkStore {
     return match.role;
   }
 
+  async sendPasswordReset(emailInput: string): Promise<void> {
+    const email = emailInput.trim().toLowerCase();
+    if (!email) {
+      throw new Error('Ingresá tu correo electrónico para recuperar la contraseña.');
+    }
+    if (isFirebaseConfigured && auth) {
+      await sendPasswordResetEmail(auth, email);
+      return;
+    }
+    const accounts = readJSON<LocalAccount[]>(STORAGE_KEYS.LOCAL_ACCOUNTS, []);
+    if (!accounts.some((a) => a.email === email)) {
+      throw new Error('No encontramos ninguna cuenta registrada con ese correo.');
+    }
+  }
+
   async logoutToGuest(): Promise<void> {
     if (isFirebaseConfigured && auth) {
       await signOut(auth);
@@ -1042,6 +1129,7 @@ class SynkStore {
         CourierPublicProfile,
         | 'publicName'
         | 'photoUrl'
+        | 'contactPhone'
         | 'vehicle'
         | 'city'
         | 'workZone'
@@ -1050,16 +1138,24 @@ class SynkStore {
         | 'description'
         | 'extraServices'
         | 'serviceCategory'
+        | 'serviceCategories'
       >
     >
   ): Promise<void> {
     if (this.state.session.uid !== courierId || this.state.session.role !== 'courier') {
-      throw new Error('Solo podés modificar tu propio perfil de repartidor.');
+      throw new Error('Solo podés modificar tu propio perfil de prestador.');
+    }
+
+    const cleanPatch = { ...patch };
+    if (Array.isArray(cleanPatch.serviceCategories) && cleanPatch.serviceCategories.length > 0) {
+      cleanPatch.serviceCategory = cleanPatch.serviceCategories[0];
+    } else if (cleanPatch.serviceCategory && !cleanPatch.serviceCategories) {
+      cleanPatch.serviceCategories = [cleanPatch.serviceCategory];
     }
 
     if (isFirebaseConfigured && db) {
       await updateDoc(doc(db, FIRESTORE_COLLECTIONS.COURIERS_PUBLIC, courierId), {
-        ...patch,
+        ...cleanPatch,
         updatedAt: serverTimestamp(),
       });
       return;
@@ -1067,16 +1163,16 @@ class SynkStore {
 
     const couriers = readJSON<CourierPublicProfile[]>(STORAGE_KEYS.LOCAL_COURIERS, []);
     const updated = couriers.map((c) =>
-      c.id === courierId ? { ...c, ...patch, updatedAt: new Date().toISOString() } : c
+      c.id === courierId ? { ...c, ...cleanPatch, updatedAt: new Date().toISOString() } : c
     );
     writeJSON(STORAGE_KEYS.LOCAL_COURIERS, updated);
-    if (patch.publicName || patch.city) {
+    if (cleanPatch.publicName || cleanPatch.city) {
       const active = readJSON<CurrentSession | null>(STORAGE_KEYS.LOCAL_SESSION, null);
       if (active) {
         writeJSON(STORAGE_KEYS.LOCAL_SESSION, {
           ...active,
-          displayName: patch.publicName || active.displayName,
-          city: patch.city || active.city,
+          displayName: cleanPatch.publicName || active.displayName,
+          city: cleanPatch.city || active.city,
         });
       }
     }
@@ -1084,19 +1180,24 @@ class SynkStore {
     this.loadLocalCollections();
   }
 
-  async setOwnAvailability(courierId: string, isAvailable: boolean): Promise<void> {
+  async setOwnAvailability(courierId: string, nextStatus: AvailabilityStatus): Promise<void> {
     if (this.state.session.uid !== courierId || this.state.session.role !== 'courier') {
       throw new Error('Solo podés cambiar tu propia disponibilidad.');
     }
     const activeContract = this.state.contracts.find(
       (c) => c.courierId === courierId && c.status === 'accepted'
     );
-    if (isAvailable && activeContract) {
-      throw new Error('Tenés un mandado en curso. Marcalo como completado o cancelalo antes de pasar a Disponible.');
+    if (nextStatus !== 'busy' && activeContract) {
+      throw new Error(
+        'Tenés un trabajo en curso. Marcalo como completado o cancelalo antes de cambiar tu estado.'
+      );
     }
+
+    const isAvailable = nextStatus === 'available';
 
     if (isFirebaseConfigured && db) {
       await updateDoc(doc(db, FIRESTORE_COLLECTIONS.COURIERS_PUBLIC, courierId), {
+        availabilityStatus: nextStatus,
         isAvailable,
         updatedAt: serverTimestamp(),
       });
@@ -1107,14 +1208,19 @@ class SynkStore {
     writeJSON(
       STORAGE_KEYS.LOCAL_COURIERS,
       couriers.map((c) =>
-        c.id === courierId ? { ...c, isAvailable, updatedAt: new Date().toISOString() } : c
+        c.id === courierId
+          ? { ...c, availabilityStatus: nextStatus, isAvailable, updatedAt: new Date().toISOString() }
+          : c
       )
     );
     this.broadcastSync();
     this.loadLocalCollections();
   }
 
-  async saveCourierTariff(courierId: string, tariff: Omit<TariffItem, 'id' | 'courierId'> & { id?: string }): Promise<void> {
+  async saveCourierTariff(
+    courierId: string,
+    tariff: Omit<TariffItem, 'id' | 'courierId'> & { id?: string }
+  ): Promise<void> {
     if (this.state.session.uid !== courierId || this.state.session.role !== 'courier') {
       throw new Error('Solo podés administrar tus propias tarifas.');
     }
@@ -1132,7 +1238,13 @@ class SynkStore {
 
     if (isFirebaseConfigured && db) {
       await setDoc(
-        doc(db, FIRESTORE_COLLECTIONS.COURIERS_PUBLIC, courierId, FIRESTORE_COLLECTIONS.TARIFFS_SUBCOLLECTION, tariffId),
+        doc(
+          db,
+          FIRESTORE_COLLECTIONS.COURIERS_PUBLIC,
+          courierId,
+          FIRESTORE_COLLECTIONS.TARIFFS_SUBCOLLECTION,
+          tariffId
+        ),
         cleanTariff
       );
       const courier = this.state.couriers.find((c) => c.id === courierId);
@@ -1170,7 +1282,13 @@ class SynkStore {
 
     if (isFirebaseConfigured && db) {
       await deleteDoc(
-        doc(db, FIRESTORE_COLLECTIONS.COURIERS_PUBLIC, courierId, FIRESTORE_COLLECTIONS.TARIFFS_SUBCOLLECTION, tariffId)
+        doc(
+          db,
+          FIRESTORE_COLLECTIONS.COURIERS_PUBLIC,
+          courierId,
+          FIRESTORE_COLLECTIONS.TARIFFS_SUBCOLLECTION,
+          tariffId
+        )
       );
       const courier = this.state.couriers.find((c) => c.id === courierId);
       const nextTariffs = (courier?.tariffs || []).filter((t) => t.id !== tariffId);
@@ -1200,7 +1318,9 @@ class SynkStore {
   // ---- MERCHANT PROFILE & JOBS ----
   async updateOwnMerchantProfile(
     merchantId: string,
-    patch: Partial<Pick<MerchantProfile, 'businessName' | 'ownerName' | 'address' | 'city' | 'category' | 'description'>>
+    patch: Partial<
+      Pick<MerchantProfile, 'businessName' | 'ownerName' | 'address' | 'city' | 'category' | 'description'>
+    >
   ): Promise<void> {
     if (this.state.session.uid !== merchantId || this.state.session.role !== 'merchant') {
       throw new Error('Solo podés editar el perfil de tu propio comercio.');
@@ -1261,7 +1381,6 @@ class SynkStore {
       modality: input.modality,
       paySummary: input.paySummary.trim() || 'A convenir',
       status: 'open',
-      isDemo: false,
       createdAt: now,
     };
 
@@ -1336,9 +1455,14 @@ class SynkStore {
     if (session.uid === courier.id) {
       throw new Error('No podés iniciar una conversación con tu propio perfil.');
     }
-    if (!courier.isAvailable) {
+    if (courier.availabilityStatus === 'busy') {
       throw new Error(
-        'Este repartidor se encuentra realizando otro mandado. Contactá a un repartidor disponible'
+        'Este prestador se encuentra realizando otro trabajo. Contactá a un prestador disponible.'
+      );
+    }
+    if (courier.availabilityStatus === 'offline') {
+      throw new Error(
+        'Este prestador está desconectado (fuera de horario laboral). Contactá a un prestador disponible.'
       );
     }
 
@@ -1370,8 +1494,7 @@ class SynkStore {
       updatedAt: now,
     };
 
-    const useFirebase = isFirebaseConfigured && db && !courier.isDemo;
-    if (useFirebase && db) {
+    if (isFirebaseConfigured && db) {
       await setDoc(doc(db, FIRESTORE_COLLECTIONS.CONVERSATIONS, convId), {
         ...conv,
         lastMessageAt: serverTimestamp(),
@@ -1405,8 +1528,6 @@ class SynkStore {
     const clean = text.trim();
     if (!clean) return;
     const { session } = this.state;
-    const conv = this.state.conversations.find((c) => c.id === conversationId);
-    const isDemoConv = conv?.courierId.startsWith('demo-') ?? false;
 
     const msgId = makeId('msg');
     const now = new Date().toISOString();
@@ -1422,10 +1543,16 @@ class SynkStore {
       createdAt: now,
     };
 
-    if (isFirebaseConfigured && db && !isDemoConv) {
+    if (isFirebaseConfigured && db) {
       const batch = writeBatch(db);
       batch.set(
-        doc(db, FIRESTORE_COLLECTIONS.CONVERSATIONS, conversationId, FIRESTORE_COLLECTIONS.MESSAGES_SUBCOLLECTION, msgId),
+        doc(
+          db,
+          FIRESTORE_COLLECTIONS.CONVERSATIONS,
+          conversationId,
+          FIRESTORE_COLLECTIONS.MESSAGES_SUBCOLLECTION,
+          msgId
+        ),
         { ...msg, createdAt: serverTimestamp() }
       );
       batch.update(doc(db, FIRESTORE_COLLECTIONS.CONVERSATIONS, conversationId), {
@@ -1462,10 +1589,15 @@ class SynkStore {
     const conv = this.state.conversations.find((c) => c.id === input.conversationId);
     if (!conv) throw new Error('Conversación no encontrada.');
     const courier = this.state.couriers.find((c) => c.id === conv.courierId);
-    if (!courier) throw new Error('Repartidor no encontrado.');
-    if (!courier.isAvailable) {
+    if (!courier) throw new Error('Prestador no encontrado.');
+    if (courier.availabilityStatus === 'busy') {
       throw new Error(
-        'Este repartidor se encuentra realizando otro mandado. Contactá a un repartidor disponible'
+        'Este prestador se encuentra realizando otro trabajo. Contactá a un prestador disponible.'
+      );
+    }
+    if (courier.availabilityStatus === 'offline') {
+      throw new Error(
+        'Este prestador está desconectado (fuera de horario laboral). Contactá a un prestador disponible.'
       );
     }
 
@@ -1492,8 +1624,7 @@ class SynkStore {
       updatedAt: now,
     };
 
-    const isDemoCourier = Boolean(courier.isDemo);
-    if (isFirebaseConfigured && db && !isDemoCourier) {
+    if (isFirebaseConfigured && db) {
       await setDoc(doc(db, FIRESTORE_COLLECTIONS.CONTRACTS, contractId), {
         ...contract,
         createdAt: serverTimestamp(),
@@ -1507,19 +1638,19 @@ class SynkStore {
 
     await this.sendMessage(
       conv.id,
-      `Propuesta de mandado (${input.modality}): ${input.description.trim()}`,
+      `Propuesta de servicio (${input.modality}): ${input.description.trim()}`,
       'contract_proposal',
       contractId
     );
 
-    if (!isFirebaseConfigured || isDemoCourier) {
+    if (!isFirebaseConfigured) {
       this.broadcastSync();
       this.loadLocalCollections();
     }
     return contract;
   }
 
-  async acceptContract(contractId: string, allowDemoSimulation = false): Promise<void> {
+  async acceptContract(contractId: string): Promise<void> {
     const contract = this.state.contracts.find((c) => c.id === contractId);
     if (!contract) throw new Error('Contratación no encontrada.');
     if (contract.status !== 'proposed') {
@@ -1527,30 +1658,32 @@ class SynkStore {
     }
 
     const courier = this.state.couriers.find((c) => c.id === contract.courierId);
-    if (!courier) throw new Error('Repartidor no encontrado.');
+    if (!courier) throw new Error('Prestador no encontrado.');
 
-    if (!allowDemoSimulation && this.state.session.uid !== contract.courierId) {
-      throw new Error('Solo el repartidor asignado puede aceptar este mandado.');
+    if (this.state.session.uid !== contract.courierId) {
+      throw new Error('Solo el prestador asignado puede aceptar este trabajo.');
     }
 
-    // Prevent simultaneous incompatible jobs
     const activeOther = this.state.contracts.find(
       (c) => c.courierId === contract.courierId && c.status === 'accepted' && c.id !== contractId
     );
-    if (!courier.isAvailable || activeOther) {
-      throw new Error('El repartidor ya está realizando otro mandado activo. Debe completarlo primero.');
+    if (courier.availabilityStatus !== 'available' || activeOther) {
+      throw new Error('Debés estar Disponible y sin otro trabajo activo para aceptar una propuesta.');
     }
 
     const now = new Date().toISOString();
-    const isDemoCourier = Boolean(courier.isDemo);
 
-    if (isFirebaseConfigured && db && !isDemoCourier) {
+    if (isFirebaseConfigured && db) {
       await runTransaction(db, async (tx) => {
         const courierRef = doc(db!, FIRESTORE_COLLECTIONS.COURIERS_PUBLIC, courier.id);
         const contractRef = doc(db!, FIRESTORE_COLLECTIONS.CONTRACTS, contractId);
         const cSnap = await tx.get(courierRef);
-        if (!cSnap.exists() || cSnap.data().isAvailable === false) {
-          throw new Error('El repartidor ya se encuentra Ocupado con otro mandado.');
+        if (!cSnap.exists()) {
+          throw new Error('Perfil de prestador no encontrado.');
+        }
+        const status = resolveAvailabilityStatus(cSnap.data() as Record<string, unknown>);
+        if (status !== 'available') {
+          throw new Error('Tu estado debe figurar Disponible para aceptar este trabajo.');
         }
         tx.update(contractRef, {
           status: 'accepted',
@@ -1558,6 +1691,7 @@ class SynkStore {
           updatedAt: serverTimestamp(),
         });
         tx.update(courierRef, {
+          availabilityStatus: 'busy',
           isAvailable: false,
           activeContractId: contractId,
           updatedAt: serverTimestamp(),
@@ -1571,69 +1705,69 @@ class SynkStore {
           c.id === contractId ? { ...c, status: 'accepted', acceptedAt: now, updatedAt: now } : c
         )
       );
-      if (isDemoCourier) {
-        const overrides = readJSON<Record<string, Partial<CourierPublicProfile>>>(
-          STORAGE_KEYS.DEMO_OVERRIDES,
-          {}
-        );
-        overrides[courier.id] = {
-          ...overrides[courier.id],
-          isAvailable: false,
-          activeContractId: contractId,
-        };
-        writeJSON(STORAGE_KEYS.DEMO_OVERRIDES, overrides);
-      } else {
-        const couriers = readJSON<CourierPublicProfile[]>(STORAGE_KEYS.LOCAL_COURIERS, []);
-        writeJSON(
-          STORAGE_KEYS.LOCAL_COURIERS,
-          couriers.map((c) =>
-            c.id === courier.id
-              ? { ...c, isAvailable: false, activeContractId: contractId, updatedAt: now }
-              : c
-          )
-        );
-      }
+      const couriers = readJSON<CourierPublicProfile[]>(STORAGE_KEYS.LOCAL_COURIERS, []);
+      writeJSON(
+        STORAGE_KEYS.LOCAL_COURIERS,
+        couriers.map((c) =>
+          c.id === courier.id
+            ? {
+                ...c,
+                availabilityStatus: 'busy',
+                isAvailable: false,
+                activeContractId: contractId,
+                updatedAt: now,
+              }
+            : c
+        )
+      );
     }
 
     await this.sendMessage(
       contract.conversationId,
-      `${courier.publicName} aceptó el mandado. Estado actualizado a Ocupado.`,
+      `${courier.publicName} aceptó el trabajo. Estado actualizado a Ocupado.`,
       'contract_status',
       contractId
     );
   }
 
-  async completeContract(contractId: string, allowDemoSimulation = false): Promise<void> {
+  async completeContract(contractId: string): Promise<void> {
     const contract = this.state.contracts.find((c) => c.id === contractId);
     if (!contract) throw new Error('Contratación no encontrada.');
     if (contract.status !== 'accepted') {
-      throw new Error('Solo se pueden completar mandados que estén en curso.');
+      throw new Error('Solo se pueden completar trabajos que estén en curso.');
     }
     const courier = this.state.couriers.find((c) => c.id === contract.courierId);
-    if (!courier) throw new Error('Repartidor no encontrado.');
+    if (!courier) throw new Error('Prestador no encontrado.');
 
-    if (!allowDemoSimulation && this.state.session.uid !== contract.courierId) {
-      throw new Error('Solo el repartidor asignado puede marcar el mandado como completado.');
+    if (this.state.session.uid !== contract.courierId) {
+      throw new Error('Solo el prestador asignado puede marcar el trabajo como completado.');
     }
 
     const now = new Date().toISOString();
-    const isDemoCourier = Boolean(courier.isDemo);
+    let isFirstCompletedJob = false;
 
-    if (isFirebaseConfigured && db && !isDemoCourier) {
+    if (isFirebaseConfigured && db) {
       await runTransaction(db, async (tx) => {
         const courierRef = doc(db!, FIRESTORE_COLLECTIONS.COURIERS_PUBLIC, courier.id);
         const contractRef = doc(db!, FIRESTORE_COLLECTIONS.CONTRACTS, contractId);
         const cSnap = await tx.get(courierRef);
         const prevCount = Number(cSnap.data()?.completedCount || 0);
+        const prevPoints =
+          typeof cSnap.data()?.points === 'number' ? Number(cSnap.data()?.points) : prevCount * 10;
+        if (prevCount === 0) {
+          isFirstCompletedJob = true;
+        }
         tx.update(contractRef, {
           status: 'completed',
           completedAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });
         tx.update(courierRef, {
+          availabilityStatus: 'available',
           isAvailable: true,
           activeContractId: null,
           completedCount: prevCount + 1,
+          points: prevPoints + 10,
           updatedAt: serverTimestamp(),
         });
       });
@@ -1645,41 +1779,43 @@ class SynkStore {
           c.id === contractId ? { ...c, status: 'completed', completedAt: now, updatedAt: now } : c
         )
       );
-      if (isDemoCourier) {
-        const overrides = readJSON<Record<string, Partial<CourierPublicProfile>>>(
-          STORAGE_KEYS.DEMO_OVERRIDES,
-          {}
-        );
-        const currentCompleted = overrides[courier.id]?.completedCount ?? courier.completedCount;
-        overrides[courier.id] = {
-          ...overrides[courier.id],
-          isAvailable: true,
-          activeContractId: null,
-          completedCount: currentCompleted + 1,
-        };
-        writeJSON(STORAGE_KEYS.DEMO_OVERRIDES, overrides);
-      } else {
-        const couriers = readJSON<CourierPublicProfile[]>(STORAGE_KEYS.LOCAL_COURIERS, []);
-        writeJSON(
-          STORAGE_KEYS.LOCAL_COURIERS,
-          couriers.map((c) =>
-            c.id === courier.id
-              ? {
-                  ...c,
-                  isAvailable: true,
-                  activeContractId: null,
-                  completedCount: c.completedCount + 1,
-                  updatedAt: now,
-                }
-              : c
-          )
-        );
+      const couriers = readJSON<CourierPublicProfile[]>(STORAGE_KEYS.LOCAL_COURIERS, []);
+      writeJSON(
+        STORAGE_KEYS.LOCAL_COURIERS,
+        couriers.map((c) => {
+          if (c.id !== courier.id) return c;
+          if (c.completedCount === 0) isFirstCompletedJob = true;
+          const prevPoints = typeof c.points === 'number' ? c.points : c.completedCount * 10;
+          return {
+            ...c,
+            availabilityStatus: 'available',
+            isAvailable: true,
+            activeContractId: null,
+            completedCount: c.completedCount + 1,
+            points: prevPoints + 10,
+            updatedAt: now,
+          };
+        })
+      );
+    }
+
+    if (isFirstCompletedJob) {
+      const flagKey = `${STORAGE_KEYS.FIRST_JOB_PREFIX}${courier.id}`;
+      try {
+        if (!localStorage.getItem(flagKey)) {
+          localStorage.setItem(flagKey, '1');
+          this.state = { ...this.state, firstJobCelebrationPending: true };
+          this.emit();
+        }
+      } catch {
+        this.state = { ...this.state, firstJobCelebrationPending: true };
+        this.emit();
       }
     }
 
     await this.sendMessage(
       contract.conversationId,
-      `Mandado completado. ${courier.publicName} volvió a estar Disponible. Ya podés dejar tu valoración.`,
+      `Trabajo completado (+10 pts). ${courier.publicName} volvió a estar Disponible. Ya podés dejar tu valoración.`,
       'contract_status',
       contractId
     );
@@ -1689,15 +1825,14 @@ class SynkStore {
     const contract = this.state.contracts.find((c) => c.id === contractId);
     if (!contract) throw new Error('Contratación no encontrada.');
     if (contract.status === 'completed' || contract.status === 'cancelled') {
-      throw new Error('Este mandado ya finalizó.');
+      throw new Error('Este trabajo ya finalizó.');
     }
 
     const courier = this.state.couriers.find((c) => c.id === contract.courierId);
     const wasAccepted = contract.status === 'accepted';
     const now = new Date().toISOString();
-    const isDemoCourier = Boolean(courier?.isDemo);
 
-    if (isFirebaseConfigured && db && !isDemoCourier) {
+    if (isFirebaseConfigured && db) {
       const batch = writeBatch(db);
       batch.update(doc(db, FIRESTORE_COLLECTIONS.CONTRACTS, contractId), {
         status: 'cancelled',
@@ -1706,6 +1841,7 @@ class SynkStore {
       });
       if (wasAccepted && courier) {
         batch.update(doc(db, FIRESTORE_COLLECTIONS.COURIERS_PUBLIC, courier.id), {
+          availabilityStatus: 'available',
           isAvailable: true,
           activeContractId: null,
           updatedAt: serverTimestamp(),
@@ -1721,36 +1857,29 @@ class SynkStore {
         )
       );
       if (wasAccepted && courier) {
-        if (isDemoCourier) {
-          const overrides = readJSON<Record<string, Partial<CourierPublicProfile>>>(
-            STORAGE_KEYS.DEMO_OVERRIDES,
-            {}
-          );
-          overrides[courier.id] = {
-            ...overrides[courier.id],
-            isAvailable: true,
-            activeContractId: null,
-          };
-          writeJSON(STORAGE_KEYS.DEMO_OVERRIDES, overrides);
-        } else {
-          const couriers = readJSON<CourierPublicProfile[]>(STORAGE_KEYS.LOCAL_COURIERS, []);
-          writeJSON(
-            STORAGE_KEYS.LOCAL_COURIERS,
-            couriers.map((c) =>
-              c.id === courier.id
-                ? { ...c, isAvailable: true, activeContractId: null, updatedAt: now }
-                : c
-            )
-          );
-        }
+        const couriers = readJSON<CourierPublicProfile[]>(STORAGE_KEYS.LOCAL_COURIERS, []);
+        writeJSON(
+          STORAGE_KEYS.LOCAL_COURIERS,
+          couriers.map((c) =>
+            c.id === courier.id
+              ? {
+                  ...c,
+                  availabilityStatus: 'available',
+                  isAvailable: true,
+                  activeContractId: null,
+                  updatedAt: now,
+                }
+              : c
+          )
+        );
       }
     }
 
     await this.sendMessage(
       contract.conversationId,
       wasAccepted
-        ? `Mandado cancelado. ${courier?.publicName || 'El repartidor'} volvió a estar Disponible.`
-        : 'La propuesta de mandado fue cancelada.',
+        ? `Trabajo cancelado. ${courier?.publicName || 'El prestador'} volvió a estar Disponible.`
+        : 'La propuesta de servicio fue cancelada.',
       'contract_status',
       contractId
     );
@@ -1761,18 +1890,18 @@ class SynkStore {
     const contract = this.state.contracts.find((c) => c.id === contractId);
     if (!contract) throw new Error('Contratación no encontrada.');
     if (contract.status !== 'completed') {
-      throw new Error('Solo podés calificar mandados registrados como completados.');
+      throw new Error('Solo podés calificar trabajos registrados como completados.');
     }
     if (contract.rated) {
-      throw new Error('Este mandado ya fue calificado.');
+      throw new Error('Este trabajo ya fue calificado.');
     }
     if (contract.clientId !== this.state.session.uid) {
-      throw new Error('Solo el cliente contratante puede calificar este mandado.');
+      throw new Error('Solo el cliente contratante puede calificar este trabajo.');
     }
 
     const cleanScore = Math.max(1, Math.min(5, Math.round(score)));
     const courier = this.state.couriers.find((c) => c.id === contract.courierId);
-    if (!courier) throw new Error('Repartidor no encontrado.');
+    if (!courier) throw new Error('Prestador no encontrado.');
 
     const now = new Date().toISOString();
     const record: RatingRecord = {
@@ -1790,8 +1919,11 @@ class SynkStore {
       (((courier.ratingAverage || 0) * courier.ratingCount + cleanScore) / nextCount).toFixed(2)
     );
 
-    const isDemoCourier = Boolean(courier.isDemo);
-    if (isFirebaseConfigured && db && !isDemoCourier) {
+    const bonusPts = cleanScore === 5 ? 5 : 0;
+    const prevPoints =
+      typeof courier.points === 'number' ? courier.points : courier.completedCount * 10;
+
+    if (isFirebaseConfigured && db) {
       const batch = writeBatch(db);
       batch.set(doc(db, FIRESTORE_COLLECTIONS.RATINGS, contractId), {
         ...record,
@@ -1802,12 +1934,19 @@ class SynkStore {
         ratingValue: cleanScore,
         updatedAt: serverTimestamp(),
       });
-      batch.update(doc(db, FIRESTORE_COLLECTIONS.COURIERS_PUBLIC, courier.id), {
-        ratingAverage: nextAvg,
-        ratingCount: nextCount,
-        updatedAt: serverTimestamp(),
-      });
       await batch.commit();
+
+      // Best-effort sync of aggregate fields on couriers_public (client state also enriches from ratings)
+      try {
+        await updateDoc(doc(db, FIRESTORE_COLLECTIONS.COURIERS_PUBLIC, courier.id), {
+          ratingAverage: nextAvg,
+          ratingCount: nextCount,
+          points: prevPoints + bonusPts,
+          updatedAt: serverTimestamp(),
+        });
+      } catch {
+        // Ignore if Firestore rules restrict couriers_public writes to owner only
+      }
       return;
     }
 
@@ -1823,68 +1962,22 @@ class SynkStore {
       )
     );
 
-    if (isDemoCourier) {
-      const overrides = readJSON<Record<string, Partial<CourierPublicProfile>>>(
-        STORAGE_KEYS.DEMO_OVERRIDES,
-        {}
-      );
-      overrides[courier.id] = {
-        ...overrides[courier.id],
-        ratingAverage: nextAvg,
-        ratingCount: nextCount,
-      };
-      writeJSON(STORAGE_KEYS.DEMO_OVERRIDES, overrides);
-    } else {
-      const couriers = readJSON<CourierPublicProfile[]>(STORAGE_KEYS.LOCAL_COURIERS, []);
-      writeJSON(
-        STORAGE_KEYS.LOCAL_COURIERS,
-        couriers.map((c) =>
-          c.id === courier.id
-            ? { ...c, ratingAverage: nextAvg, ratingCount: nextCount, updatedAt: now }
-            : c
-        )
-      );
-    }
-
-    this.broadcastSync();
-    this.loadLocalCollections();
-  }
-
-  // ---- DEMO HELPER FOR TESTING REALTIME REPLY ----
-  async simulateDemoReply(conversationId: string): Promise<void> {
-    const conv = this.state.conversations.find((c) => c.id === conversationId);
-    if (!conv) return;
-    const courier = this.state.couriers.find((c) => c.id === conv.courierId);
-    if (!courier || !courier.isDemo) return;
-
-    const msgId = makeId('msg');
-    const now = new Date().toISOString();
-    const reply: ChatMessage = {
-      id: msgId,
-      conversationId,
-      senderId: courier.id,
-      senderName: courier.publicName,
-      senderRole: 'courier',
-      text: `¡Hola! Sí, estoy disponible ahora por ${courier.workZone}. La tarifa base es ${
-        courier.startingPriceArs ? `$${courier.startingPriceArs.toLocaleString('es-AR')} ARS` : 'a convenir'
-      }. Si te sirve, enviame la propuesta de mandado acá abajo y la acepto al instante.`,
-      messageType: 'text',
-      createdAt: now,
-    };
-
-    const allMsgs = readJSON<Record<string, ChatMessage[]>>(STORAGE_KEYS.LOCAL_MESSAGES, {});
-    allMsgs[conversationId] = [...(allMsgs[conversationId] || []), reply];
-    writeJSON(STORAGE_KEYS.LOCAL_MESSAGES, allMsgs);
-
-    const convs = readJSON<Conversation[]>(STORAGE_KEYS.LOCAL_CONVERSATIONS, []);
+    const couriers = readJSON<CourierPublicProfile[]>(STORAGE_KEYS.LOCAL_COURIERS, []);
     writeJSON(
-      STORAGE_KEYS.LOCAL_CONVERSATIONS,
-      convs.map((c) =>
-        c.id === conversationId
-          ? { ...c, lastMessage: reply.text, lastMessageAt: now, updatedAt: now }
+      STORAGE_KEYS.LOCAL_COURIERS,
+      couriers.map((c) =>
+        c.id === courier.id
+          ? {
+              ...c,
+              ratingAverage: nextAvg,
+              ratingCount: nextCount,
+              points: prevPoints + bonusPts,
+              updatedAt: now,
+            }
           : c
       )
     );
+
     this.broadcastSync();
     this.loadLocalCollections();
   }

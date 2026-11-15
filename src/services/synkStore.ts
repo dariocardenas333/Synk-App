@@ -97,7 +97,7 @@ export interface CourierRegistrationInput {
   serviceCategories?: ServiceCategory[];
   tutoringLevels?: TutoringLevel[];
   tutoringSubjects?: string;
-  vehicle: string;
+  vehicle?: string;
   city: CityName;
   workZone: string;
   description: string;
@@ -1265,7 +1265,7 @@ class SynkStore {
       serviceCategories: categories,
       tutoringLevels: Array.isArray(input.tutoringLevels) ? input.tutoringLevels : [],
       tutoringSubjects: input.tutoringSubjects?.trim() || '',
-      vehicle: input.vehicle.trim(),
+      vehicle: input.vehicle?.trim() || '',
       city: input.city,
       workZone: input.workZone.trim(),
       coverageZones: input.workZone

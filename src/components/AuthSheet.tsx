@@ -615,11 +615,11 @@ export const AuthSheet: React.FC<AuthSheetProps> = ({
 
             <div>
               <label className="block text-xs font-semibold text-[#063642] dark:text-slate-200">
-                Vehículo o equipamiento
+                Vehículo o equipamiento{' '}
+                <span className="font-normal text-slate-400 dark:text-slate-500">(opcional)</span>
               </label>
               <input
                 type="text"
-                required
                 value={cVehicle}
                 onChange={(e) => setCVehicle(e.target.value)}
                 placeholder="Ej: Moto 110cc / Herramientas de plomería"

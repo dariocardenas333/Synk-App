@@ -434,11 +434,11 @@ export const CourierServicesView: React.FC<CourierServicesViewProps> = ({
 
           <div>
             <label className="block text-xs font-semibold text-[#063642] dark:text-slate-200">
-              Vehículo o equipamiento
+              Vehículo o equipamiento{' '}
+              <span className="font-normal text-slate-400 dark:text-slate-500">(opcional)</span>
             </label>
             <input
               type="text"
-              required
               value={vehicle}
               onChange={(e) => setVehicle(e.target.value)}
               placeholder="Ej: Moto 110cc / Kangoo / Herramental propio"

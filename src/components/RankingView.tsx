@@ -32,9 +32,9 @@ export const RankingView: React.FC<RankingViewProps> = ({
   const myEntry = myIndex >= 0 ? ranked[myIndex] : null;
 
   return (
-    <div className="bg-[#F8FAFA] pb-24">
+    <div className="bg-[#F8FAFA] pb-24 dark:bg-[#07181E]">
       {/* Leaderboard Banner */}
-      <div className="bg-gradient-to-br from-[#063642] to-[#0B4F60] px-4 pb-5 pt-5 text-white">
+      <div className="bg-gradient-to-br from-[#063642] to-[#0B4F60] px-4 pb-5 pt-5 text-white dark:from-[#0B2A35] dark:to-[#07181E]">
         <div className="flex items-center justify-between gap-3">
           <div>
             <div className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-[#F5A623]">
@@ -58,7 +58,7 @@ export const RankingView: React.FC<RankingViewProps> = ({
 
         {myEntry && (
           <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl bg-white/10 px-4 py-3 backdrop-blur-xs">
-            <div className="flex items-center gap-3 min-w-0">
+            <div className="flex min-w-0 items-center gap-3">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#F5A623] font-display text-sm font-extrabold text-[#063642] tabular-nums">
                 #{myIndex + 1}
               </span>
@@ -72,7 +72,7 @@ export const RankingView: React.FC<RankingViewProps> = ({
                 </p>
               </div>
             </div>
-            <div className="text-right shrink-0">
+            <div className="shrink-0 text-right">
               <span className="font-mono text-base font-extrabold text-[#F5A623] tabular-nums">
                 {myEntry.points} pts
               </span>
@@ -82,7 +82,7 @@ export const RankingView: React.FC<RankingViewProps> = ({
       </div>
 
       {/* Transparency Note */}
-      <div className="mx-4 mt-4 flex items-start gap-2.5 rounded-2xl border border-[#F5A623]/40 bg-[#F5A623]/10 p-3 text-xs text-[#063642]">
+      <div className="mx-4 mt-4 flex items-start gap-2.5 rounded-2xl border border-[#F5A623]/40 bg-[#F5A623]/10 p-3 text-xs text-[#063642] dark:bg-[#F5A623]/15 dark:text-slate-100">
         <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-[#F5A623]" />
         <p className="leading-relaxed">
           Reconocimiento simbólico interno exclusivo para prestadores. No modifica ni altera el
@@ -93,7 +93,7 @@ export const RankingView: React.FC<RankingViewProps> = ({
       {/* Leaderboard List */}
       <div className="space-y-2.5 p-4">
         {ranked.length === 0 ? (
-          <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 text-center text-xs text-slate-500">
+          <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 text-center text-xs text-slate-500 dark:border-[#1E4452] dark:bg-[#0D252E] dark:text-slate-400">
             Todavía no hay prestadores registrados en el ranking.
           </div>
         ) : (
@@ -107,15 +107,15 @@ export const RankingView: React.FC<RankingViewProps> = ({
                   <Crown className="h-5 w-5" />
                 </div>
               ) : rank === 2 ? (
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-200 text-[#063642]">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-200 text-[#063642] dark:bg-slate-700 dark:text-white">
                   <Medal className="h-5 w-5" />
                 </div>
               ) : rank === 3 ? (
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#F5A623]/25 text-[#9A5B00]">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#F5A623]/25 text-[#9A5B00] dark:bg-[#F5A623]/20 dark:text-[#F5A623]">
                   <Award className="h-5 w-5" />
                 </div>
               ) : (
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#F8FAFA] font-display text-xs font-extrabold text-slate-600 tabular-nums">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#F8FAFA] font-display text-xs font-extrabold text-slate-600 tabular-nums dark:bg-[#13323D] dark:text-slate-300">
                   {rank}
                 </span>
               );
@@ -125,14 +125,14 @@ export const RankingView: React.FC<RankingViewProps> = ({
                 key={entry.courier.id}
                 className={`flex items-center justify-between gap-3 rounded-2xl border p-3.5 transition ${
                   isMe
-                    ? 'border-[#008B8B] bg-[#008B8B]/5 shadow-xs'
-                    : 'border-[#E2E8F0] bg-white'
+                    ? 'border-[#008B8B] bg-[#008B8B]/5 shadow-xs dark:border-[#2DD4BF] dark:bg-[#008B8B]/15'
+                    : 'border-[#E2E8F0] bg-white dark:border-[#1E4452] dark:bg-[#0D252E]'
                 }`}
               >
-                <div className="flex items-center gap-3 min-w-0">
+                <div className="flex min-w-0 items-center gap-3">
                   {rankBadge}
 
-                  <div className="h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-[#063642] text-white">
+                  <div className="h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-[#063642] text-white dark:bg-[#13323D]">
                     {entry.courier.photoUrl ? (
                       <img
                         src={entry.courier.photoUrl}
@@ -148,7 +148,7 @@ export const RankingView: React.FC<RankingViewProps> = ({
 
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <p className="truncate font-display text-sm font-bold text-[#063642]">
+                      <p className="truncate font-display text-sm font-bold text-[#063642] dark:text-white">
                         {entry.courier.publicName}
                       </p>
                       {isMe && (
@@ -157,7 +157,7 @@ export const RankingView: React.FC<RankingViewProps> = ({
                         </span>
                       )}
                     </div>
-                    <p className="truncate text-[11px] text-slate-500">
+                    <p className="truncate text-[11px] text-slate-500 dark:text-slate-400">
                       {getCategoryInfo(entry.courier.serviceCategory).label} ·{' '}
                       {entry.courier.completedCount}{' '}
                       {entry.courier.completedCount === 1 ? 'trabajo' : 'trabajos'}
@@ -165,10 +165,12 @@ export const RankingView: React.FC<RankingViewProps> = ({
                   </div>
                 </div>
 
-                <div className="flex shrink-0 items-center gap-1 font-mono text-sm font-extrabold text-[#063642] tabular-nums">
+                <div className="flex shrink-0 items-center gap-1 font-mono text-sm font-extrabold text-[#063642] tabular-nums dark:text-white">
                   <Flame className="h-4 w-4 text-[#F5A623]" />
                   <span>{entry.points}</span>
-                  <span className="text-[11px] font-semibold text-slate-400">pts</span>
+                  <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-400">
+                    pts
+                  </span>
                 </div>
               </div>
             );

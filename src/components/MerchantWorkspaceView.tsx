@@ -152,14 +152,14 @@ export const MerchantWorkspaceView: React.FC<MerchantWorkspaceViewProps> = ({
   };
 
   return (
-    <div className="bg-[#F8FAFA] pb-24">
-      <div className="border-b border-[#E2E8F0] bg-white px-4 pb-3 pt-3">
+    <div className="bg-[#F8FAFA] pb-24 dark:bg-[#07181E]">
+      <div className="border-b border-[#E2E8F0] bg-white px-4 pb-3 pt-3 dark:border-[#1E4452] dark:bg-[#0D252E]">
         <div className="flex items-center justify-between gap-2">
           <div>
-            <h1 className="font-display text-lg font-extrabold text-[#063642]">
+            <h1 className="font-display text-lg font-extrabold text-[#063642] dark:text-white">
               {isMerchant ? merchant?.businessName : 'Espacio Comercios'}
             </h1>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
               {isMerchant
                 ? `${merchant?.category} · ${merchant?.city}`
                 : 'Envíos puntuales, recurrentes y oportunidades laborales'}
@@ -169,19 +169,21 @@ export const MerchantWorkspaceView: React.FC<MerchantWorkspaceViewProps> = ({
             <button
               type="button"
               onClick={onOpenMerchantAuth}
-              className="h-10 shrink-0 rounded-xl bg-[#063642] px-3.5 text-xs font-bold text-white"
+              className="h-10 shrink-0 rounded-xl bg-[#063642] px-3.5 text-xs font-bold text-white dark:bg-[#008B8B] dark:hover:bg-[#007676]"
             >
               Soy comercio
             </button>
           )}
         </div>
 
-        <div className="mt-3 grid grid-cols-3 gap-1 rounded-xl bg-[#F8FAFA] p-1 border border-[#E2E8F0]">
+        <div className="mt-3 grid grid-cols-3 gap-1 rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] p-1 dark:border-[#1E4452] dark:bg-[#13323D]">
           <button
             type="button"
             onClick={() => setSubTab('dispatch')}
             className={`h-10 rounded-lg text-xs font-bold transition ${
-              subTab === 'dispatch' ? 'bg-white text-[#063642] shadow-xs' : 'text-slate-600'
+              subTab === 'dispatch'
+                ? 'bg-white text-[#063642] shadow-xs dark:bg-[#0D252E] dark:text-white'
+                : 'text-slate-600 dark:text-slate-400'
             }`}
           >
             Prestadores
@@ -190,7 +192,9 @@ export const MerchantWorkspaceView: React.FC<MerchantWorkspaceViewProps> = ({
             type="button"
             onClick={() => setSubTab('jobs')}
             className={`h-10 rounded-lg text-xs font-bold transition ${
-              subTab === 'jobs' ? 'bg-white text-[#063642] shadow-xs' : 'text-slate-600'
+              subTab === 'jobs'
+                ? 'bg-white text-[#063642] shadow-xs dark:bg-[#0D252E] dark:text-white'
+                : 'text-slate-600 dark:text-slate-400'
             }`}
           >
             Oportunidades
@@ -199,7 +203,9 @@ export const MerchantWorkspaceView: React.FC<MerchantWorkspaceViewProps> = ({
             type="button"
             onClick={() => setSubTab('profile')}
             className={`h-10 rounded-lg text-xs font-bold transition ${
-              subTab === 'profile' ? 'bg-white text-[#063642] shadow-xs' : 'text-slate-600'
+              subTab === 'profile'
+                ? 'bg-white text-[#063642] shadow-xs dark:bg-[#0D252E] dark:text-white'
+                : 'text-slate-600 dark:text-slate-400'
             }`}
           >
             {isMerchant ? 'Mi comercio' : 'Registrarme'}
@@ -213,8 +219,8 @@ export const MerchantWorkspaceView: React.FC<MerchantWorkspaceViewProps> = ({
             {knownCouriers.length > 0 && (
               <section>
                 <div className="flex items-center gap-2">
-                  <RefreshCw className="h-4 w-4 text-[#008B8B]" />
-                  <h2 className="font-display text-sm font-bold text-[#063642]">
+                  <RefreshCw className="h-4 w-4 text-[#008B8B] dark:text-[#2DD4BF]" />
+                  <h2 className="font-display text-sm font-bold text-[#063642] dark:text-white">
                     Volver a contratar prestadores conocidos
                   </h2>
                 </div>
@@ -226,12 +232,12 @@ export const MerchantWorkspaceView: React.FC<MerchantWorkspaceViewProps> = ({
                         key={c.id}
                         type="button"
                         onClick={() => setDispatchCourier(c)}
-                        className="min-w-[170px] shrink-0 rounded-2xl border border-[#E2E8F0] bg-white p-3 text-left"
+                        className="min-w-[170px] shrink-0 rounded-2xl border border-[#E2E8F0] bg-white p-3 text-left dark:border-[#1E4452] dark:bg-[#0D252E]"
                       >
-                        <p className="truncate font-display text-xs font-bold text-[#063642]">
+                        <p className="truncate font-display text-xs font-bold text-[#063642] dark:text-white">
                           {c.publicName}
                         </p>
-                        <p className="mt-0.5 text-[11px] text-slate-500">
+                        <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
                           {getCategoryInfo(c.serviceCategory).label}
                         </p>
                         <p className={`mt-1.5 text-[11px] font-bold ${meta.textClass}`}>
@@ -248,7 +254,7 @@ export const MerchantWorkspaceView: React.FC<MerchantWorkspaceViewProps> = ({
 
             {favoriteCouriers.length > 0 && (
               <section>
-                <h2 className="font-display text-sm font-bold text-[#063642]">
+                <h2 className="font-display text-sm font-bold text-[#063642] dark:text-white">
                   Favoritos del comercio ({favoriteCouriers.length})
                 </h2>
                 <div className="mt-2.5 space-y-3">
@@ -267,14 +273,14 @@ export const MerchantWorkspaceView: React.FC<MerchantWorkspaceViewProps> = ({
             )}
 
             <section>
-              <h2 className="font-display text-sm font-bold text-[#063642]">
+              <h2 className="font-display text-sm font-bold text-[#063642] dark:text-white">
                 Prestadores en {session.city} ({cityCouriers.length})
               </h2>
-              <p className="mt-0.5 text-xs text-slate-500">
+              <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
                 Consultá tarifas y solicitá envíos puntuales o recorridos recurrentes.
               </p>
               {cityCouriers.length === 0 ? (
-                <div className="mt-3 rounded-2xl border border-[#E2E8F0] bg-white p-5 text-center text-xs text-slate-500">
+                <div className="mt-3 rounded-2xl border border-[#E2E8F0] bg-white p-5 text-center text-xs text-slate-500 dark:border-[#1E4452] dark:bg-[#0D252E] dark:text-slate-400">
                   Todavía no hay prestadores registrados en {session.city}.
                 </div>
               ) : (
@@ -297,12 +303,12 @@ export const MerchantWorkspaceView: React.FC<MerchantWorkspaceViewProps> = ({
 
         {subTab === 'jobs' && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between gap-3 rounded-2xl border border-[#E2E8F0] bg-white p-3.5">
+            <div className="flex items-center justify-between gap-3 rounded-2xl border border-[#E2E8F0] bg-white p-3.5 dark:border-[#1E4452] dark:bg-[#0D252E]">
               <div className="min-w-0">
-                <p className="font-display text-sm font-bold text-[#063642]">
+                <p className="font-display text-sm font-bold text-[#063642] dark:text-white">
                   Oportunidades laborales
                 </p>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-slate-500 dark:text-slate-400">
                   Búsquedas de prestadores publicadas por comercios.
                 </p>
               </div>
@@ -310,7 +316,7 @@ export const MerchantWorkspaceView: React.FC<MerchantWorkspaceViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowJobForm((p) => !p)}
-                  className="flex h-10 shrink-0 items-center gap-1 rounded-xl bg-[#008B8B] px-3 text-xs font-bold text-white"
+                  className="flex h-10 shrink-0 items-center gap-1 rounded-xl bg-[#008B8B] px-3 text-xs font-bold text-white hover:bg-[#007676]"
                 >
                   <Plus className="h-4 w-4" />
                   <span>Publicar</span>
@@ -319,7 +325,7 @@ export const MerchantWorkspaceView: React.FC<MerchantWorkspaceViewProps> = ({
                 <button
                   type="button"
                   onClick={onOpenMerchantAuth}
-                  className="h-10 shrink-0 rounded-xl bg-[#063642] px-3 text-xs font-bold text-white"
+                  className="h-10 shrink-0 rounded-xl bg-[#063642] px-3 text-xs font-bold text-white dark:bg-[#008B8B] dark:hover:bg-[#007676]"
                 >
                   Publicar como comercio
                 </button>
@@ -329,9 +335,9 @@ export const MerchantWorkspaceView: React.FC<MerchantWorkspaceViewProps> = ({
             {showJobForm && isMerchant && (
               <form
                 onSubmit={handleCreateJob}
-                className="space-y-3 rounded-2xl border border-[#008B8B]/30 bg-white p-4"
+                className="space-y-3 rounded-2xl border border-[#008B8B]/30 bg-white p-4 dark:border-[#2DD4BF]/40 dark:bg-[#0D252E]"
               >
-                <h3 className="font-display text-sm font-bold text-[#063642]">
+                <h3 className="font-display text-sm font-bold text-[#063642] dark:text-white">
                   Nueva búsqueda de prestador
                 </h3>
                 <input
@@ -340,7 +346,7 @@ export const MerchantWorkspaceView: React.FC<MerchantWorkspaceViewProps> = ({
                   value={jTitle}
                   onChange={(e) => setJTitle(e.target.value)}
                   placeholder="Ej: Motomandado turno noche"
-                  className="h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3 text-sm text-[#063642] outline-none focus:border-[#008B8B] focus:bg-white"
+                  className="h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3 text-sm text-[#063642] outline-none placeholder:text-slate-400 focus:border-[#008B8B] focus:bg-white dark:border-[#1E4452] dark:bg-[#13323D] dark:text-white dark:placeholder:text-slate-500 dark:focus:border-[#2DD4BF] dark:focus:bg-[#13323D]"
                 />
                 <textarea
                   rows={2}
@@ -348,13 +354,13 @@ export const MerchantWorkspaceView: React.FC<MerchantWorkspaceViewProps> = ({
                   value={jDesc}
                   onChange={(e) => setJDesc(e.target.value)}
                   placeholder="Días, horarios, zona de cobertura y requisitos..."
-                  className="w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] p-3 text-sm text-[#063642] outline-none focus:border-[#008B8B] focus:bg-white"
+                  className="w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] p-3 text-sm text-[#063642] outline-none placeholder:text-slate-400 focus:border-[#008B8B] focus:bg-white dark:border-[#1E4452] dark:bg-[#13323D] dark:text-white dark:placeholder:text-slate-500 dark:focus:border-[#2DD4BF] dark:focus:bg-[#13323D]"
                 />
                 <div className="grid grid-cols-2 gap-2.5">
                   <select
                     value={jCat}
                     onChange={(e) => setJCat(e.target.value as ServiceCategory)}
-                    className="h-11 rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-2.5 text-sm text-[#063642] outline-none focus:border-[#008B8B]"
+                    className="h-11 rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-2.5 text-sm text-[#063642] outline-none focus:border-[#008B8B] dark:border-[#1E4452] dark:bg-[#13323D] dark:text-white dark:focus:border-[#2DD4BF]"
                   >
                     {ORDERED_CATEGORIES.map((catId) => (
                       <option key={catId} value={catId}>
@@ -365,7 +371,7 @@ export const MerchantWorkspaceView: React.FC<MerchantWorkspaceViewProps> = ({
                   <select
                     value={jMod}
                     onChange={(e) => setJMod(e.target.value as 'puntual' | 'recurrente' | 'turno')}
-                    className="h-11 rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-2.5 text-sm text-[#063642] outline-none focus:border-[#008B8B]"
+                    className="h-11 rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-2.5 text-sm text-[#063642] outline-none focus:border-[#008B8B] dark:border-[#1E4452] dark:bg-[#13323D] dark:text-white dark:focus:border-[#2DD4BF]"
                   >
                     <option value="turno">Turno fijo</option>
                     <option value="recurrente">Recurrente</option>
@@ -377,11 +383,11 @@ export const MerchantWorkspaceView: React.FC<MerchantWorkspaceViewProps> = ({
                   value={jPay}
                   onChange={(e) => setJPay(e.target.value)}
                   placeholder="Remuneración estimada (ej: $15.000 ARS/noche)"
-                  className="h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3 text-sm text-[#063642] outline-none focus:border-[#008B8B] focus:bg-white"
+                  className="h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3 text-sm text-[#063642] outline-none placeholder:text-slate-400 focus:border-[#008B8B] focus:bg-white dark:border-[#1E4452] dark:bg-[#13323D] dark:text-white dark:placeholder:text-slate-500 dark:focus:border-[#2DD4BF] dark:focus:bg-[#13323D]"
                 />
                 <button
                   type="submit"
-                  className="h-11 w-full rounded-xl bg-[#008B8B] text-xs font-bold text-white"
+                  className="h-11 w-full rounded-xl bg-[#008B8B] text-xs font-bold text-white hover:bg-[#007676]"
                 >
                   Publicar oportunidad
                 </button>
@@ -390,7 +396,7 @@ export const MerchantWorkspaceView: React.FC<MerchantWorkspaceViewProps> = ({
 
             <div className="space-y-3">
               {jobOpportunities.length === 0 && (
-                <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 text-center text-xs text-slate-500">
+                <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 text-center text-xs text-slate-500 dark:border-[#1E4452] dark:bg-[#0D252E] dark:text-slate-400">
                   Todavía no hay búsquedas laborales publicadas por comercios.
                 </div>
               )}
@@ -399,47 +405,49 @@ export const MerchantWorkspaceView: React.FC<MerchantWorkspaceViewProps> = ({
                 return (
                   <article
                     key={job.id}
-                    className="rounded-2xl border border-[#E2E8F0] bg-white p-4"
+                    className="rounded-2xl border border-[#E2E8F0] bg-white p-4 dark:border-[#1E4452] dark:bg-[#0D252E]"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <h3 className="font-display text-sm font-bold text-[#063642]">
+                        <h3 className="font-display text-sm font-bold text-[#063642] dark:text-white">
                           {job.title}
                         </h3>
-                        <p className="mt-0.5 text-xs font-medium text-slate-600">
+                        <p className="mt-0.5 text-xs font-medium text-slate-600 dark:text-slate-300">
                           {job.merchantName} · {job.merchantCategory}
                         </p>
                       </div>
                       <span
                         className={`shrink-0 rounded-md px-2 py-0.5 text-[11px] font-bold ${
                           job.status === 'open'
-                            ? 'bg-[#22C55E]/15 text-[#15803D]'
-                            : 'bg-slate-100 text-slate-500'
+                            ? 'bg-[#22C55E]/15 text-[#15803D] dark:bg-[#22C55E]/20 dark:text-[#4ADE80]'
+                            : 'bg-slate-100 text-slate-500 dark:bg-[#13323D] dark:text-slate-400'
                         }`}
                       >
                         {job.status === 'open' ? 'Activa' : 'Cerrada'}
                       </span>
                     </div>
 
-                    <p className="mt-2 text-xs leading-relaxed text-slate-600">{job.description}</p>
+                    <p className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+                      {job.description}
+                    </p>
 
-                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-2.5 text-xs">
-                      <span className="inline-flex items-center gap-1 text-slate-500">
-                        <MapPin className="h-3.5 w-3.5 text-[#008B8B]" />
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-2.5 text-xs dark:border-[#1E4452]">
+                      <span className="inline-flex items-center gap-1 text-slate-500 dark:text-slate-400">
+                        <MapPin className="h-3.5 w-3.5 text-[#008B8B] dark:text-[#2DD4BF]" />
                         {job.city} · {getCategoryInfo(job.serviceCategory).label}
                       </span>
-                      <span className="font-mono font-semibold text-[#063642]">
+                      <span className="font-mono font-semibold text-[#063642] dark:text-slate-100">
                         {job.paySummary}
                       </span>
                     </div>
 
-                    <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400">
+                    <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400 dark:text-slate-500">
                       <span className="tabular-nums">Publicada {formatDateAR(job.createdAt)}</span>
                       {isMine && (
                         <button
                           type="button"
                           onClick={() => onToggleJobStatus(job.id)}
-                          className="font-semibold text-[#008B8B] hover:underline"
+                          className="font-semibold text-[#008B8B] hover:underline dark:text-[#2DD4BF]"
                         >
                           {job.status === 'open' ? 'Pausar búsqueda' : 'Reabrir búsqueda'}
                         </button>
@@ -455,34 +463,37 @@ export const MerchantWorkspaceView: React.FC<MerchantWorkspaceViewProps> = ({
         {subTab === 'profile' && (
           <div>
             {!isMerchant ? (
-              <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 text-center">
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#063642] text-white">
+              <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 text-center dark:border-[#1E4452] dark:bg-[#0D252E]">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#063642] text-white dark:bg-[#13323D] dark:text-[#2DD4BF]">
                   <Store className="h-6 w-6" />
                 </div>
-                <h2 className="mt-3 font-display text-base font-bold text-[#063642]">
+                <h2 className="mt-3 font-display text-base font-bold text-[#063642] dark:text-white">
                   Cuenta exclusiva para comercios
                 </h2>
-                <p className="mt-1.5 text-xs leading-relaxed text-slate-600">
+                <p className="mt-1.5 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
                   Registrá tu local para administrar tu perfil comercial, guardar prestadores
                   favoritos, solicitar servicios puntuales o recurrentes y publicar búsquedas.
                 </p>
                 <button
                   type="button"
                   onClick={onOpenMerchantAuth}
-                  className="mt-4 h-11 rounded-xl bg-[#008B8B] px-5 text-xs font-bold text-white"
+                  className="mt-4 h-11 rounded-xl bg-[#008B8B] px-5 text-xs font-bold text-white hover:bg-[#007676]"
                 >
                   Crear cuenta de comercio / Ingresar
                 </button>
               </div>
             ) : (
-              <form onSubmit={handleSaveMerchantProfile} className="space-y-3.5 rounded-2xl border border-[#E2E8F0] bg-white p-4">
+              <form
+                onSubmit={handleSaveMerchantProfile}
+                className="space-y-3.5 rounded-2xl border border-[#E2E8F0] bg-white p-4 dark:border-[#1E4452] dark:bg-[#0D252E]"
+              >
                 {profileSaved && (
-                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-medium text-emerald-700">
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-medium text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-200">
                     Perfil de comercio actualizado.
                   </div>
                 )}
                 <div>
-                  <label className="block text-xs font-semibold text-[#063642]">
+                  <label className="block text-xs font-semibold text-[#063642] dark:text-slate-200">
                     Nombre del comercio
                   </label>
                   <input
@@ -490,26 +501,30 @@ export const MerchantWorkspaceView: React.FC<MerchantWorkspaceViewProps> = ({
                     required
                     value={bName}
                     onChange={(e) => setBName(e.target.value)}
-                    className="mt-1 h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3 text-sm text-[#063642] outline-none focus:border-[#008B8B] focus:bg-white"
+                    className="mt-1 h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3 text-sm text-[#063642] outline-none focus:border-[#008B8B] focus:bg-white dark:border-[#1E4452] dark:bg-[#13323D] dark:text-white dark:focus:border-[#2DD4BF] dark:focus:bg-[#13323D]"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-[#063642]">Responsable</label>
+                  <label className="block text-xs font-semibold text-[#063642] dark:text-slate-200">
+                    Responsable
+                  </label>
                   <input
                     type="text"
                     required
                     value={oName}
                     onChange={(e) => setOName(e.target.value)}
-                    className="mt-1 h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3 text-sm text-[#063642] outline-none focus:border-[#008B8B] focus:bg-white"
+                    className="mt-1 h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3 text-sm text-[#063642] outline-none focus:border-[#008B8B] focus:bg-white dark:border-[#1E4452] dark:bg-[#13323D] dark:text-white dark:focus:border-[#2DD4BF] dark:focus:bg-[#13323D]"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-2.5">
                   <div>
-                    <label className="block text-xs font-semibold text-[#063642]">Ciudad</label>
+                    <label className="block text-xs font-semibold text-[#063642] dark:text-slate-200">
+                      Ciudad
+                    </label>
                     <select
                       value={city}
                       onChange={(e) => setCity(e.target.value as CityName)}
-                      className="mt-1 h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-2.5 text-sm text-[#063642] outline-none focus:border-[#008B8B]"
+                      className="mt-1 h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-2.5 text-sm text-[#063642] outline-none focus:border-[#008B8B] dark:border-[#1E4452] dark:bg-[#13323D] dark:text-white dark:focus:border-[#2DD4BF]"
                     >
                       {CITIES.map((c) => (
                         <option key={c} value={c}>
@@ -519,11 +534,13 @@ export const MerchantWorkspaceView: React.FC<MerchantWorkspaceViewProps> = ({
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-[#063642]">Rubro</label>
+                    <label className="block text-xs font-semibold text-[#063642] dark:text-slate-200">
+                      Rubro
+                    </label>
                     <select
                       value={category}
                       onChange={(e) => setCategory(e.target.value)}
-                      className="mt-1 h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-2.5 text-sm text-[#063642] outline-none focus:border-[#008B8B]"
+                      className="mt-1 h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-2.5 text-sm text-[#063642] outline-none focus:border-[#008B8B] dark:border-[#1E4452] dark:bg-[#13323D] dark:text-white dark:focus:border-[#2DD4BF]"
                     >
                       {MERCHANT_CATEGORIES.map((c) => (
                         <option key={c} value={c}>
@@ -534,17 +551,19 @@ export const MerchantWorkspaceView: React.FC<MerchantWorkspaceViewProps> = ({
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-[#063642]">Dirección</label>
+                  <label className="block text-xs font-semibold text-[#063642] dark:text-slate-200">
+                    Dirección
+                  </label>
                   <input
                     type="text"
                     required
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
-                    className="mt-1 h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3 text-sm text-[#063642] outline-none focus:border-[#008B8B] focus:bg-white"
+                    className="mt-1 h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3 text-sm text-[#063642] outline-none focus:border-[#008B8B] focus:bg-white dark:border-[#1E4452] dark:bg-[#13323D] dark:text-white dark:focus:border-[#2DD4BF] dark:focus:bg-[#13323D]"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-[#063642]">
+                  <label className="block text-xs font-semibold text-[#063642] dark:text-slate-200">
                     Notas de logística del comercio
                   </label>
                   <textarea
@@ -552,12 +571,12 @@ export const MerchantWorkspaceView: React.FC<MerchantWorkspaceViewProps> = ({
                     value={desc}
                     onChange={(e) => setDesc(e.target.value)}
                     placeholder="Horarios de despacho, tipo de paquetes..."
-                    className="mt-1 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] p-3 text-sm text-[#063642] outline-none focus:border-[#008B8B] focus:bg-white"
+                    className="mt-1 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] p-3 text-sm text-[#063642] outline-none placeholder:text-slate-400 focus:border-[#008B8B] focus:bg-white dark:border-[#1E4452] dark:bg-[#13323D] dark:text-white dark:placeholder:text-slate-500 dark:focus:border-[#2DD4BF] dark:focus:bg-[#13323D]"
                   />
                 </div>
                 <button
                   type="submit"
-                  className="h-12 w-full rounded-xl bg-[#063642] text-sm font-bold text-white"
+                  className="h-12 w-full rounded-xl bg-[#063642] text-sm font-bold text-white dark:bg-[#008B8B] dark:hover:bg-[#007676]"
                 >
                   Guardar cambios del comercio
                 </button>
@@ -569,21 +588,21 @@ export const MerchantWorkspaceView: React.FC<MerchantWorkspaceViewProps> = ({
 
       {/* Modal to request Puntual or Recurrente service */}
       {dispatchCourier && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 backdrop-blur-xs sm:items-center dark:bg-black/70">
           <form
             onSubmit={handleDispatchSubmit}
-            className="w-full max-w-[398px] space-y-3.5 rounded-3xl bg-white p-5 shadow-2xl"
+            className="w-full max-w-[398px] space-y-3.5 rounded-3xl bg-white p-5 shadow-2xl dark:border dark:border-[#1E4452] dark:bg-[#0D252E]"
           >
             <div className="flex items-start justify-between">
               <div>
-                <h3 className="font-display text-base font-bold text-[#063642]">
+                <h3 className="font-display text-base font-bold text-[#063642] dark:text-white">
                   Solicitar servicio a {dispatchCourier.publicName}
                 </h3>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-slate-500 dark:text-slate-400">
                   Elegí si es un envío puntual o un recorrido recurrente.
                 </p>
               </div>
-              <Briefcase className="h-5 w-5 text-[#008B8B]" />
+              <Briefcase className="h-5 w-5 text-[#008B8B] dark:text-[#2DD4BF]" />
             </div>
 
             <div className="grid grid-cols-2 gap-2">
@@ -592,8 +611,8 @@ export const MerchantWorkspaceView: React.FC<MerchantWorkspaceViewProps> = ({
                 onClick={() => setDispatchModality('puntual')}
                 className={`h-10 rounded-xl border text-xs font-bold ${
                   dispatchModality === 'puntual'
-                    ? 'border-[#008B8B] bg-[#008B8B]/10 text-[#008B8B]'
-                    : 'border-[#E2E8F0] text-slate-600'
+                    ? 'border-[#008B8B] bg-[#008B8B]/10 text-[#008B8B] dark:border-[#2DD4BF] dark:bg-[#008B8B]/20 dark:text-[#2DD4BF]'
+                    : 'border-[#E2E8F0] text-slate-600 dark:border-[#1E4452] dark:text-slate-300'
                 }`}
               >
                 Servicio puntual
@@ -603,8 +622,8 @@ export const MerchantWorkspaceView: React.FC<MerchantWorkspaceViewProps> = ({
                 onClick={() => setDispatchModality('recurrente')}
                 className={`h-10 rounded-xl border text-xs font-bold ${
                   dispatchModality === 'recurrente'
-                    ? 'border-[#008B8B] bg-[#008B8B]/10 text-[#008B8B]'
-                    : 'border-[#E2E8F0] text-slate-600'
+                    ? 'border-[#008B8B] bg-[#008B8B]/10 text-[#008B8B] dark:border-[#2DD4BF] dark:bg-[#008B8B]/20 dark:text-[#2DD4BF]'
+                    : 'border-[#E2E8F0] text-slate-600 dark:border-[#1E4452] dark:text-slate-300'
                 }`}
               >
                 Recurrente
@@ -617,20 +636,20 @@ export const MerchantWorkspaceView: React.FC<MerchantWorkspaceViewProps> = ({
               value={dispatchDesc}
               onChange={(e) => setDispatchDesc(e.target.value)}
               placeholder="Ej: Retirar pedido en el local a las 13:00 y entregar en Barrio San Martín."
-              className="w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] p-3 text-sm text-[#063642] outline-none focus:border-[#008B8B] focus:bg-white"
+              className="w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] p-3 text-sm text-[#063642] outline-none placeholder:text-slate-400 focus:border-[#008B8B] focus:bg-white dark:border-[#1E4452] dark:bg-[#13323D] dark:text-white dark:placeholder:text-slate-500 dark:focus:border-[#2DD4BF] dark:focus:bg-[#13323D]"
             />
 
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() => setDispatchCourier(null)}
-                className="h-11 flex-1 rounded-xl border border-[#E2E8F0] text-xs font-bold text-slate-600"
+                className="h-11 flex-1 rounded-xl border border-[#E2E8F0] text-xs font-bold text-slate-600 dark:border-[#1E4452] dark:bg-[#13323D] dark:text-slate-300"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#008B8B] text-xs font-bold text-white"
+                className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#008B8B] text-xs font-bold text-white hover:bg-[#007676]"
               >
                 <Send className="h-4 w-4" />
                 <span>Enviar al chat</span>

@@ -53,7 +53,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   return (
     <nav
       aria-label="Navegación principal"
-      className="fixed bottom-0 left-1/2 z-30 w-full max-w-[430px] -translate-x-1/2 border-t border-[#E2E8F0] bg-white/95 backdrop-blur-md pb-safe"
+      className="fixed bottom-0 left-1/2 z-30 w-full max-w-[430px] -translate-x-1/2 border-t border-[#E2E8F0] bg-white/95 backdrop-blur-md pb-safe dark:border-[#1E4452] dark:bg-[#0D252E]/95"
     >
       <div className="grid h-16 grid-cols-4 items-center">
         {items.map((item) => {
@@ -64,7 +64,9 @@ export const BottomNav: React.FC<BottomNavProps> = ({
               type="button"
               onClick={() => onChangeTab(item.id)}
               className={`flex h-full flex-col items-center justify-center gap-1 transition active:scale-95 ${
-                isActive ? 'text-[#008B8B]' : 'text-slate-500 hover:text-[#063642]'
+                isActive
+                  ? 'text-[#008B8B] dark:text-[#2DD4BF]'
+                  : 'text-slate-500 hover:text-[#063642] dark:text-slate-400 dark:hover:text-white'
               }`}
             >
               {item.icon}

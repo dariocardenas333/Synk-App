@@ -48,12 +48,12 @@ export const ChatListView: React.FC<ChatListViewProps> = ({
   };
 
   return (
-    <div className="bg-[#F8FAFA] pb-24">
-      <div className="border-b border-[#E2E8F0] bg-white px-4 pb-3 pt-3">
-        <h1 className="font-display text-lg font-extrabold text-[#063642]">
+    <div className="bg-[#F8FAFA] pb-24 dark:bg-[#07181E]">
+      <div className="border-b border-[#E2E8F0] bg-white px-4 pb-3 pt-3 dark:border-[#1E4452] dark:bg-[#0D252E]">
+        <h1 className="font-display text-lg font-extrabold text-[#063642] dark:text-white">
           {isProvider ? 'Chats con clientes' : 'Conversaciones y servicios'}
         </h1>
-        <p className="mt-0.5 text-xs text-slate-500">
+        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
           {isProvider
             ? 'Respondé consultas y confirmá o cerrá tus servicios directo desde acá.'
             : 'Acordá condiciones y tarifas directo por chat privado.'}
@@ -62,20 +62,20 @@ export const ChatListView: React.FC<ChatListViewProps> = ({
 
       <div className="p-4">
         {error && (
-          <div className="mb-3 rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-medium text-red-700">
+          <div className="mb-3 rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-medium text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200">
             {error}
           </div>
         )}
 
         {conversations.length === 0 ? (
-          <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 text-center">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#008B8B]/10 text-[#008B8B]">
+          <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 text-center dark:border-[#1E4452] dark:bg-[#0D252E]">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#008B8B]/10 text-[#008B8B] dark:bg-[#008B8B]/20 dark:text-[#2DD4BF]">
               <MessageSquare className="h-6 w-6" />
             </div>
-            <p className="mt-3 text-sm font-bold text-[#063642]">
+            <p className="mt-3 text-sm font-bold text-[#063642] dark:text-white">
               Todavía no tenés conversaciones
             </p>
-            <p className="mt-1 text-xs leading-relaxed text-slate-500">
+            <p className="mt-1 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
               {isProvider
                 ? 'Cuando un cliente o comercio te contacte para solicitar un servicio, la conversación aparecerá acá.'
                 : 'Elegí un prestador disponible, revisá sus tarifas e iniciá un chat para coordinar.'}
@@ -84,14 +84,14 @@ export const ChatListView: React.FC<ChatListViewProps> = ({
               <button
                 type="button"
                 onClick={onGoSearch}
-                className="mt-4 h-11 rounded-xl bg-[#063642] px-5 text-xs font-bold text-white"
+                className="mt-4 h-11 rounded-xl bg-[#063642] px-5 text-xs font-bold text-white dark:bg-[#008B8B]"
               >
                 Buscar prestadores
               </button>
             )}
           </div>
         ) : (
-          <div className="divide-y divide-slate-100 rounded-2xl border border-[#E2E8F0] bg-white">
+          <div className="divide-y divide-slate-100 rounded-2xl border border-[#E2E8F0] bg-white dark:divide-[#1E4452] dark:border-[#1E4452] dark:bg-[#0D252E]">
             {conversations.map((conv) => {
               const isCourierUser = session.uid === conv.courierId;
               const counterpartName = isCourierUser ? conv.clientName : conv.courierName;
@@ -111,13 +111,16 @@ export const ChatListView: React.FC<ChatListViewProps> = ({
                 Boolean(onCompleteContract);
 
               return (
-                <div key={conv.id} className="p-3.5 transition hover:bg-[#F8FAFA]">
+                <div
+                  key={conv.id}
+                  className="p-3.5 transition hover:bg-[#F8FAFA] dark:hover:bg-[#13323D]/60"
+                >
                   <button
                     type="button"
                     onClick={() => onOpenConversation(conv.id)}
                     className="flex w-full items-center gap-3 text-left"
                   >
-                    <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-2xl bg-[#063642] text-white">
+                    <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-2xl bg-[#063642] text-white dark:bg-[#13323D]">
                       {!isCourierUser && courier?.photoUrl ? (
                         <img
                           src={courier.photoUrl}
@@ -134,7 +137,7 @@ export const ChatListView: React.FC<ChatListViewProps> = ({
 
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
-                        <p className="truncate font-display text-sm font-bold text-[#063642]">
+                        <p className="truncate font-display text-sm font-bold text-[#063642] dark:text-white">
                           {counterpartName}
                         </p>
                         <span className="shrink-0 text-[11px] text-slate-400 tabular-nums">
@@ -142,7 +145,7 @@ export const ChatListView: React.FC<ChatListViewProps> = ({
                         </span>
                       </div>
 
-                      <p className="mt-0.5 truncate text-xs text-slate-500">
+                      <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-300">
                         {conv.lastMessage}
                       </p>
 
@@ -152,11 +155,11 @@ export const ChatListView: React.FC<ChatListViewProps> = ({
                         </span>
                         {latestContract && (
                           <>
-                            <span className="text-slate-300" aria-hidden="true">
+                            <span className="text-slate-300 dark:text-slate-600" aria-hidden="true">
                               ·
                             </span>
                             {latestContract.status === 'accepted' && (
-                              <span className="inline-flex items-center gap-1 font-semibold text-[#EF4444]">
+                              <span className="inline-flex items-center gap-1 font-semibold text-[#EF4444] dark:text-[#F87171]">
                                 <Clock className="h-3 w-3" />
                                 En curso
                               </span>
@@ -167,7 +170,7 @@ export const ChatListView: React.FC<ChatListViewProps> = ({
                               </span>
                             )}
                             {latestContract.status === 'completed' && (
-                              <span className="inline-flex items-center gap-1 font-semibold text-[#16A34A]">
+                              <span className="inline-flex items-center gap-1 font-semibold text-[#16A34A] dark:text-[#4ADE80]">
                                 <PackageCheck className="h-3 w-3" />
                                 Finalizado
                               </span>
@@ -179,7 +182,7 @@ export const ChatListView: React.FC<ChatListViewProps> = ({
                         )}
                         {!latestContract && courier && statusMeta && (
                           <>
-                            <span className="text-slate-300" aria-hidden="true">
+                            <span className="text-slate-300 dark:text-slate-600" aria-hidden="true">
                               ·
                             </span>
                             <span className={`inline-flex items-center gap-1 font-semibold ${statusMeta.textClass}`}>

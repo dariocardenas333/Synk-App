@@ -19,6 +19,7 @@ import { RankingView } from './components/RankingView';
 import { SearchView } from './components/SearchView';
 import { UserMenuSheet } from './components/UserMenuSheet';
 import { WelcomeView } from './components/WelcomeView';
+import { useTheme } from './hooks/useTheme';
 import { synkStore, type SynkStateSnapshot } from './services/synkStore';
 import type { CourierPublicProfile, ServiceCategory } from './types/synk';
 
@@ -56,6 +57,7 @@ const PROVIDER_ONLY_SCREENS: ReadonlyArray<ScreenState['name']> = [
 ];
 
 export default function App() {
+  const { isDark, toggleTheme } = useTheme();
   const [snap, setSnap] = useState<SynkStateSnapshot>(() => synkStore.getState());
   const [screen, setScreen] = useState<ScreenState>({ name: 'home' });
   const [history, setHistory] = useState<ScreenState[]>([]);
@@ -201,22 +203,26 @@ export default function App() {
     screen.name !== 'auth';
 
   return (
-    <div className="min-h-dvh bg-[#F8FAFA] sm:py-4">
+    <div className="min-h-dvh bg-[#F8FAFA] dark:bg-[#041015] sm:py-4">
       {/* Centered 430px Mobile App Frame */}
-      <div className="relative mx-auto min-h-dvh w-full max-w-[430px] bg-[#F8FAFA] shadow-xl sm:min-h-[calc(100dvh-2rem)] sm:overflow-hidden sm:rounded-[28px] sm:border sm:border-[#E2E8F0]">
+      <div className="relative mx-auto min-h-dvh w-full max-w-[430px] bg-[#F8FAFA] shadow-xl dark:bg-[#07181E] sm:min-h-[calc(100dvh-2rem)] sm:overflow-hidden sm:rounded-[28px] sm:border sm:border-[#E2E8F0] dark:sm:border-[#1E4452]">
         <OfflineIndicator />
 
         {!snap.ready ? (
-          <div className="flex min-h-dvh flex-col items-center justify-center gap-3 bg-[#F8FAFA] p-6">
-            <img
-              src="/logo-alamano.png"
-              alt="AlaMano — Servicios independientes, más cerca."
-              className="h-32 w-32 object-contain mix-blend-multiply"
-            />
-            <p className="text-xs font-medium text-[#008B8B]">Cargando...</p>
+          <div className="flex min-h-dvh flex-col items-center justify-center gap-3 bg-[#F8FAFA] p-6 dark:bg-[#07181E]">
+            <div className="dark:rounded-3xl dark:bg-white dark:p-3 dark:shadow-lg">
+              <img
+                src="/logo-alamano.png"
+                alt="AlaMano — Servicios independientes, más cerca."
+                className="h-32 w-32 object-contain mix-blend-multiply"
+              />
+            </div>
+            <p className="text-xs font-medium text-[#008B8B] dark:text-[#2DD4BF]">Cargando...</p>
           </div>
         ) : showWelcomeScreen ? (
           <WelcomeView
+            isDark={isDark}
+            onToggleTheme={toggleTheme}
             onSelectClient={() => synkStore.enterAsGuestClient()}
             onSelectProvider={() => navigate({ name: 'auth', initialType: 'courier' })}
           />
@@ -224,6 +230,8 @@ export default function App() {
           <>
             <Header
               session={snap.session}
+              isDark={isDark}
+              onToggleTheme={toggleTheme}
               onOpenUserMenu={() => setMenuOpen(true)}
               onCityChange={(city) => synkStore.updateCity(city)}
               onGoHome={() => {
@@ -235,7 +243,7 @@ export default function App() {
             {/* Non-blocking Alert Toast */}
             {toastMsg && (
               <div className="fixed left-1/2 top-16 z-50 w-[calc(100%-2rem)] max-w-[398px] -translate-x-1/2">
-                <div className="flex items-start gap-2.5 rounded-2xl bg-[#063642] p-3.5 text-xs font-medium text-white shadow-xl">
+                <div className="flex items-start gap-2.5 rounded-2xl bg-[#063642] p-3.5 text-xs font-medium text-white shadow-xl dark:border dark:border-[#1E4452] dark:bg-[#0D252E]">
                   <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#F5A623]" />
                   <p className="flex-1 leading-relaxed">{toastMsg}</p>
                   <button
@@ -250,7 +258,7 @@ export default function App() {
               </div>
             )}
 
-            <main className="min-h-[calc(100dvh-120px)] bg-[#F8FAFA]">
+            <main className="min-h-[calc(100dvh-120px)] bg-[#F8FAFA] dark:bg-[#07181E]">
               {/* Client / Merchant Views (strictly hidden for Providers) */}
               {!isProvider && screen.name === 'home' && (
                 <HomeView
@@ -285,7 +293,7 @@ export default function App() {
                 const courier = snap.couriers.find((c) => c.id === screen.courierId);
                 if (!courier) {
                   return (
-                    <div className="p-6 text-center text-sm text-slate-500">
+                    <div className="p-6 text-center text-sm text-slate-500 dark:text-slate-400">
                       Perfil no encontrado.
                     </div>
                   );
@@ -384,11 +392,13 @@ export default function App() {
                 if (!conv) {
                   return (
                     <div className="p-6 text-center">
-                      <p className="text-sm text-slate-500">Conversación no encontrada.</p>
+                      <p className="text-sm text-slate-500 dark:text-slate-400">
+                        Conversación no encontrada.
+                      </p>
                       <button
                         type="button"
                         onClick={() => setScreen({ name: 'chats' })}
-                        className="mt-3 rounded-xl bg-[#063642] px-4 py-2 text-xs font-bold text-white"
+                        className="mt-3 rounded-xl bg-[#063642] px-4 py-2 text-xs font-bold text-white dark:bg-[#008B8B]"
                       >
                         Ir a mis chats
                       </button>
@@ -520,6 +530,8 @@ export default function App() {
               session={snap.session}
               favoritesCount={snap.favorites.length}
               firebaseConnected={snap.firebaseConnected}
+              isDark={isDark}
+              onToggleTheme={toggleTheme}
               onClose={() => setMenuOpen(false)}
               onOpenCourierAuthOrPanel={() => {
                 if (isProvider) {

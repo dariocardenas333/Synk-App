@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @layer base {
   :root {
     --font-display: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
@@ -11,6 +13,13 @@
     --color-bg: #F8FAFA;
     --color-surface: #FFFFFF;
     --color-border: #E2E8F0;
+  }
+
+  .dark {
+    --color-primary: #E2F1F4;
+    --color-bg: #07181E;
+    --color-surface: #0D252E;
+    --color-border: #1E4452;
   }
 
   html,

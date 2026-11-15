@@ -124,21 +124,21 @@ export const SearchView: React.FC<SearchViewProps> = ({
   };
 
   return (
-    <div className="bg-[#F8FAFA] pb-24">
-      <div className="border-b border-[#E2E8F0] bg-white px-4 pb-4 pt-3">
-        <h1 className="font-display text-lg font-extrabold text-[#063642]">
+    <div className="bg-[#F8FAFA] pb-24 dark:bg-[#07181E]">
+      <div className="border-b border-[#E2E8F0] bg-white px-4 pb-4 pt-3 dark:border-[#1E4452] dark:bg-[#0D252E]">
+        <h1 className="font-display text-lg font-extrabold text-[#063642] dark:text-white">
           Buscar servicios
         </h1>
 
         <div className="mt-2.5 flex items-center gap-2">
           <div className="relative flex-1">
-            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#008B8B]" />
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#008B8B] dark:text-[#2DD4BF]" />
             <input
               type="search"
               value={queryText}
               onChange={(e) => setQueryText(e.target.value)}
               placeholder="Ej: plomero, fumigación, poda, moto..."
-              className="h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] pl-10 pr-3 text-sm text-[#063642] outline-none focus:border-[#008B8B] focus:bg-white"
+              className="h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] pl-10 pr-3 text-sm text-[#063642] outline-none placeholder:text-slate-400 focus:border-[#008B8B] focus:bg-white dark:border-[#1E4452] dark:bg-[#13323D] dark:text-slate-100 dark:focus:border-[#2DD4BF] dark:focus:bg-[#13323D]"
             />
           </div>
           <button
@@ -146,8 +146,8 @@ export const SearchView: React.FC<SearchViewProps> = ({
             onClick={() => setShowFilters((p) => !p)}
             className={`flex h-11 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-xs font-semibold transition ${
               showFilters
-                ? 'border-[#063642] bg-[#063642] text-white'
-                : 'border-[#E2E8F0] bg-white text-[#063642]'
+                ? 'border-[#063642] bg-[#063642] text-white dark:border-[#008B8B] dark:bg-[#008B8B]'
+                : 'border-[#E2E8F0] bg-white text-[#063642] dark:border-[#1E4452] dark:bg-[#13323D] dark:text-slate-100'
             }`}
           >
             <SlidersHorizontal className="h-4 w-4" />
@@ -156,14 +156,16 @@ export const SearchView: React.FC<SearchViewProps> = ({
         </div>
 
         {showFilters && (
-          <div className="mt-3 space-y-3 rounded-2xl border border-[#E2E8F0] bg-[#F8FAFA] p-3.5">
+          <div className="mt-3 space-y-3 rounded-2xl border border-[#E2E8F0] bg-[#F8FAFA] p-3.5 dark:border-[#1E4452] dark:bg-[#13323D]/70">
             <div className="grid grid-cols-2 gap-2.5">
               <div>
-                <label className="block text-[11px] font-semibold text-slate-600">Rubro</label>
+                <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                  Rubro
+                </label>
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value as ServiceCategory | 'all')}
-                  className="mt-1 h-10 w-full rounded-lg border border-[#E2E8F0] bg-white px-2.5 text-xs font-medium text-[#063642] outline-none focus:border-[#008B8B]"
+                  className="mt-1 h-10 w-full rounded-lg border border-[#E2E8F0] bg-white px-2.5 text-xs font-medium text-[#063642] outline-none focus:border-[#008B8B] dark:border-[#1E4452] dark:bg-[#0D252E] dark:text-slate-100"
                 >
                   <option value="all">Todos los rubros (14)</option>
                   {ORDERED_CATEGORIES.map((catId) => (
@@ -175,11 +177,13 @@ export const SearchView: React.FC<SearchViewProps> = ({
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-slate-600">Estado</label>
+                <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                  Estado
+                </label>
                 <select
                   value={availability}
                   onChange={(e) => setAvailability(e.target.value as AvailabilityFilter)}
-                  className="mt-1 h-10 w-full rounded-lg border border-[#E2E8F0] bg-white px-2.5 text-xs font-medium text-[#063642] outline-none focus:border-[#008B8B]"
+                  className="mt-1 h-10 w-full rounded-lg border border-[#E2E8F0] bg-white px-2.5 text-xs font-medium text-[#063642] outline-none focus:border-[#008B8B] dark:border-[#1E4452] dark:bg-[#0D252E] dark:text-slate-100"
                 >
                   <option value="all">Todos</option>
                   <option value="available">Disponibles</option>
@@ -189,14 +193,16 @@ export const SearchView: React.FC<SearchViewProps> = ({
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-slate-600">Ciudad</label>
+                <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                  Ciudad
+                </label>
                 <select
                   value={city}
                   onChange={(e) => {
                     setCity(e.target.value as CityName | 'all');
                     setBarrio('');
                   }}
-                  className="mt-1 h-10 w-full rounded-lg border border-[#E2E8F0] bg-white px-2.5 text-xs font-medium text-[#063642] outline-none focus:border-[#008B8B]"
+                  className="mt-1 h-10 w-full rounded-lg border border-[#E2E8F0] bg-white px-2.5 text-xs font-medium text-[#063642] outline-none focus:border-[#008B8B] dark:border-[#1E4452] dark:bg-[#0D252E] dark:text-slate-100"
                 >
                   <option value="all">Todas las ciudades</option>
                   {CITIES.map((c) => (
@@ -208,11 +214,13 @@ export const SearchView: React.FC<SearchViewProps> = ({
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-slate-600">Barrio</label>
+                <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                  Barrio
+                </label>
                 <select
                   value={barrio}
                   onChange={(e) => setBarrio(e.target.value)}
-                  className="mt-1 h-10 w-full rounded-lg border border-[#E2E8F0] bg-white px-2.5 text-xs font-medium text-[#063642] outline-none focus:border-[#008B8B]"
+                  className="mt-1 h-10 w-full rounded-lg border border-[#E2E8F0] bg-white px-2.5 text-xs font-medium text-[#063642] outline-none focus:border-[#008B8B] dark:border-[#1E4452] dark:bg-[#0D252E] dark:text-slate-100"
                 >
                   <option value="">Todos los barrios</option>
                   {neighborhoodOptions.map((n) => (
@@ -224,7 +232,7 @@ export const SearchView: React.FC<SearchViewProps> = ({
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-slate-600">
+                <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300">
                   Tarifa máxima (ARS)
                 </label>
                 <input
@@ -234,18 +242,18 @@ export const SearchView: React.FC<SearchViewProps> = ({
                   value={maxPrice}
                   onChange={(e) => setMaxPrice(e.target.value)}
                   placeholder="Ej: 5000"
-                  className="mt-1 h-10 w-full rounded-lg border border-[#E2E8F0] bg-white px-2.5 text-xs font-medium text-[#063642] outline-none focus:border-[#008B8B] tabular-nums"
+                  className="mt-1 h-10 w-full rounded-lg border border-[#E2E8F0] bg-white px-2.5 text-xs font-medium text-[#063642] outline-none placeholder:text-slate-400 focus:border-[#008B8B] tabular-nums dark:border-[#1E4452] dark:bg-[#0D252E] dark:text-slate-100"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-slate-600">
+                <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300">
                   Calificación mínima
                 </label>
                 <select
                   value={minRating}
                   onChange={(e) => setMinRating(Number(e.target.value))}
-                  className="mt-1 h-10 w-full rounded-lg border border-[#E2E8F0] bg-white px-2.5 text-xs font-medium text-[#063642] outline-none focus:border-[#008B8B]"
+                  className="mt-1 h-10 w-full rounded-lg border border-[#E2E8F0] bg-white px-2.5 text-xs font-medium text-[#063642] outline-none focus:border-[#008B8B] dark:border-[#1E4452] dark:bg-[#0D252E] dark:text-slate-100"
                 >
                   <option value={0}>Todas</option>
                   <option value={4}>4.0 o más</option>
@@ -255,14 +263,14 @@ export const SearchView: React.FC<SearchViewProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center justify-between gap-2 border-t border-[#E2E8F0] pt-2.5">
+            <div className="flex items-center justify-between gap-2 border-t border-[#E2E8F0] pt-2.5 dark:border-[#1E4452]">
               <div className="flex items-center gap-1.5">
-                <ArrowUpDown className="h-3.5 w-3.5 text-[#008B8B]" />
+                <ArrowUpDown className="h-3.5 w-3.5 text-[#008B8B] dark:text-[#2DD4BF]" />
                 <select
                   aria-label="Ordenar resultados"
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as SortMode)}
-                  className="h-9 rounded-lg border border-[#E2E8F0] bg-white px-2.5 text-xs font-semibold text-[#063642] outline-none"
+                  className="h-9 rounded-lg border border-[#E2E8F0] bg-white px-2.5 text-xs font-semibold text-[#063642] outline-none dark:border-[#1E4452] dark:bg-[#0D252E] dark:text-slate-100"
                 >
                   <option value="lowest_price">Ordenar: Menor precio</option>
                   <option value="best_rating">Ordenar: Mejor calificación</option>
@@ -273,7 +281,7 @@ export const SearchView: React.FC<SearchViewProps> = ({
               <button
                 type="button"
                 onClick={resetFilters}
-                className="flex h-9 items-center gap-1 rounded-lg px-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-200/60"
+                className="flex h-9 items-center gap-1 rounded-lg px-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-200/60 dark:text-slate-300 dark:hover:bg-[#1E4452]"
               >
                 <RotateCcw className="h-3.5 w-3.5" />
                 <span>Limpiar</span>
@@ -284,17 +292,17 @@ export const SearchView: React.FC<SearchViewProps> = ({
       </div>
 
       <div className="p-4">
-        <p className="mb-3 text-xs font-medium text-slate-500 tabular-nums">
+        <p className="mb-3 text-xs font-medium text-slate-500 tabular-nums dark:text-slate-400">
           {filtered.length}{' '}
           {filtered.length === 1 ? 'prestador encontrado' : 'prestadores encontrados'}
         </p>
 
         {filtered.length === 0 ? (
-          <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 text-center">
-            <p className="text-sm font-semibold text-[#063642]">
+          <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 text-center dark:border-[#1E4452] dark:bg-[#0D252E]">
+            <p className="text-sm font-semibold text-[#063642] dark:text-white">
               No encontramos prestadores con esos filtros
             </p>
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
               Probá ampliando el precio máximo, el barrio o la ciudad.
             </p>
             <button

@@ -173,6 +173,26 @@ function resolveAvailabilityStatus(data: Record<string, unknown>): AvailabilityS
   return data.isAvailable === false ? 'busy' : 'available';
 }
 
+function sanitizeFirestoreValue(value: unknown): unknown {
+  if (value === undefined) return null;
+  if (value === null || typeof value !== 'object') return value;
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeFirestoreValue(item));
+  }
+  if (Object.getPrototypeOf(value) === Object.prototype) {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      out[k] = sanitizeFirestoreValue(v);
+    }
+    return out;
+  }
+  return value;
+}
+
+function sanitizeFirestoreData<T extends Record<string, unknown>>(payload: T): Record<string, unknown> {
+  return sanitizeFirestoreValue(payload) as Record<string, unknown>;
+}
+
 class SynkStore {
   private listeners = new Set<(state: SynkStateSnapshot) => void>();
   private channel: BroadcastChannel | null = null;
@@ -354,13 +374,16 @@ class SynkStore {
             needsOnboarding = !guest.onboarded;
           } else {
             needsOnboarding = !guest.onboarded;
-            await setDoc(guestRef, {
-              id: fbUser.uid,
-              nickname: guest.nickname,
-              city: guest.city || 'Trelew',
-              createdAt: serverTimestamp(),
-              updatedAt: serverTimestamp(),
-            });
+            await setDoc(
+              guestRef,
+              sanitizeFirestoreData({
+                id: fbUser.uid,
+                nickname: guest.nickname || '@invitado',
+                city: guest.city || 'Trelew',
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+              })
+            );
           }
         } catch (err) {
           console.error('Error leyendo guest_clients:', err);
@@ -468,8 +491,8 @@ class SynkStore {
             return {
               id: d.id,
               publicName: data.publicName || 'Prestador',
-              photoUrl: data.photoUrl || undefined,
-              contactPhone: data.contactPhone || undefined,
+              photoUrl: data.photoUrl || null,
+              contactPhone: data.contactPhone || '',
               serviceCategory: serviceCategories[0] || primaryCat,
               serviceCategories,
               vehicle: data.vehicle || '',
@@ -570,7 +593,7 @@ class SynkStore {
               courierId: data.courierId,
               courierName: data.courierName,
               courierCategory: data.courierCategory || 'motomandado',
-              courierPhotoUrl: data.courierPhotoUrl,
+              courierPhotoUrl: data.courierPhotoUrl || null,
               lastMessage: data.lastMessage || '',
               lastMessageAt:
                 data.lastMessageAt?.toDate?.()?.toISOString?.() ||
@@ -608,7 +631,7 @@ class SynkStore {
                   senderRole: m.senderRole,
                   text: m.text,
                   messageType: m.messageType || 'text',
-                  contractId: m.contractId,
+                  contractId: m.contractId || null,
                   createdAt:
                     m.createdAt?.toDate?.()?.toISOString?.() ||
                     m.createdAt ||
@@ -749,7 +772,7 @@ class SynkStore {
         modality: (raw.modality as 'puntual' | 'recurrente') || 'puntual',
         status: (raw.status as Contract['status']) || 'proposed',
         rated: Boolean(raw.rated),
-        ratingValue: typeof raw.ratingValue === 'number' ? raw.ratingValue : undefined,
+        ratingValue: typeof raw.ratingValue === 'number' ? raw.ratingValue : null,
         createdAt: toIso(raw.createdAt),
         acceptedAt: raw.acceptedAt ? toIso(raw.acceptedAt) : null,
         completedAt: raw.completedAt ? toIso(raw.completedAt) : null,
@@ -787,12 +810,12 @@ class SynkStore {
     if (isFirebaseConfigured && db && this.state.session.isAnonymous) {
       await setDoc(
         doc(db, FIRESTORE_COLLECTIONS.GUEST_CLIENTS, this.state.session.uid),
-        {
+        sanitizeFirestoreData({
           id: this.state.session.uid,
-          nickname,
-          city: nextCity,
+          nickname: nickname || '@invitado',
+          city: nextCity || 'Trelew',
           updatedAt: serverTimestamp(),
-        },
+        }),
         { merge: true }
       );
     }
@@ -822,7 +845,7 @@ class SynkStore {
     if (this.state.session.role === 'client' && isFirebaseConfigured && db) {
       await setDoc(
         doc(db, FIRESTORE_COLLECTIONS.GUEST_CLIENTS, this.state.session.uid),
-        { city, updatedAt: serverTimestamp() },
+        sanitizeFirestoreData({ city: city || 'Trelew', updatedAt: serverTimestamp() }),
         { merge: true }
       );
     }
@@ -854,47 +877,58 @@ class SynkStore {
       const cred = await createUserWithEmailAndPassword(auth, email, input.password);
       const uid = cred.user.uid;
       const batch = writeBatch(db);
-      batch.set(doc(db, FIRESTORE_COLLECTIONS.USERS_PRIVATE, uid), {
-        id: uid,
-        role: 'courier',
-        email,
-        phone: input.phone.trim(),
-        firstName: input.firstName.trim(),
-        lastName: input.lastName.trim(),
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
+      batch.set(
+        doc(db, FIRESTORE_COLLECTIONS.USERS_PRIVATE, uid),
+        sanitizeFirestoreData({
+          id: uid,
+          role: 'courier',
+          email,
+          phone: input.phone?.trim() || '',
+          firstName: input.firstName?.trim() || '',
+          lastName: input.lastName?.trim() || '',
+          businessName: '',
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        })
+      );
       const categories =
         input.serviceCategories && input.serviceCategories.length > 0
           ? input.serviceCategories
           : [input.serviceCategory];
-      batch.set(doc(db, FIRESTORE_COLLECTIONS.COURIERS_PUBLIC, uid), {
-        id: uid,
-        publicName: input.publicName.trim() || `${input.firstName.trim()} ${input.lastName.trim()}`,
-        contactPhone: input.phone.trim(),
-        serviceCategory: categories[0],
-        serviceCategories: categories,
-        vehicle: input.vehicle.trim(),
-        city: input.city,
-        workZone: input.workZone.trim(),
-        coverageZones: input.workZone
-          .split(',')
-          .map((s) => s.trim())
-          .filter(Boolean),
-        schedule: 'Lun a Sáb 09:00 a 20:00',
-        description: input.description.trim(),
-        extraServices: [],
-        startingPriceArs: null,
-        availabilityStatus: 'available',
-        isAvailable: true,
-        activeContractId: null,
-        ratingAverage: 0,
-        ratingCount: 0,
-        completedCount: 0,
-        points: 0,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
+      batch.set(
+        doc(db, FIRESTORE_COLLECTIONS.COURIERS_PUBLIC, uid),
+        sanitizeFirestoreData({
+          id: uid,
+          publicName:
+            input.publicName?.trim() ||
+            `${input.firstName?.trim() || ''} ${input.lastName?.trim() || ''}`.trim() ||
+            'Prestador',
+          photoUrl: null,
+          contactPhone: input.phone?.trim() || '',
+          serviceCategory: categories[0] || 'motomandado',
+          serviceCategories: categories,
+          vehicle: input.vehicle?.trim() || '',
+          city: input.city || 'Trelew',
+          workZone: input.workZone?.trim() || '',
+          coverageZones: (input.workZone || '')
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean),
+          schedule: 'Lun a Sáb 09:00 a 20:00',
+          description: input.description?.trim() || '',
+          extraServices: [],
+          startingPriceArs: null,
+          availabilityStatus: 'available',
+          isAvailable: true,
+          activeContractId: null,
+          ratingAverage: 0,
+          ratingCount: 0,
+          completedCount: 0,
+          points: 0,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        })
+      );
       await batch.commit();
       return;
     }
@@ -976,26 +1010,34 @@ class SynkStore {
       const cred = await createUserWithEmailAndPassword(auth, email, input.password);
       const uid = cred.user.uid;
       const batch = writeBatch(db);
-      batch.set(doc(db, FIRESTORE_COLLECTIONS.USERS_PRIVATE, uid), {
-        id: uid,
-        role: 'merchant',
-        email,
-        phone: input.phone.trim(),
-        businessName: input.businessName.trim(),
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-      batch.set(doc(db, FIRESTORE_COLLECTIONS.MERCHANTS, uid), {
-        id: uid,
-        businessName: input.businessName.trim(),
-        ownerName: input.ownerName.trim(),
-        address: input.address.trim(),
-        city: input.city,
-        category: input.category,
-        description: '',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
+      batch.set(
+        doc(db, FIRESTORE_COLLECTIONS.USERS_PRIVATE, uid),
+        sanitizeFirestoreData({
+          id: uid,
+          role: 'merchant',
+          email,
+          phone: input.phone?.trim() || '',
+          firstName: '',
+          lastName: '',
+          businessName: input.businessName?.trim() || '',
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        })
+      );
+      batch.set(
+        doc(db, FIRESTORE_COLLECTIONS.MERCHANTS, uid),
+        sanitizeFirestoreData({
+          id: uid,
+          businessName: input.businessName?.trim() || '',
+          ownerName: input.ownerName?.trim() || '',
+          address: input.address?.trim() || '',
+          city: input.city || 'Trelew',
+          category: input.category || 'Otro',
+          description: '',
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        })
+      );
       await batch.commit();
       return;
     }
@@ -1146,7 +1188,19 @@ class SynkStore {
       throw new Error('Solo podés modificar tu propio perfil de prestador.');
     }
 
-    const cleanPatch = { ...patch };
+    const cleanPatch: Record<string, unknown> = { ...patch };
+    if ('photoUrl' in cleanPatch) {
+      cleanPatch.photoUrl = cleanPatch.photoUrl || null;
+    }
+    if ('contactPhone' in cleanPatch) {
+      cleanPatch.contactPhone = cleanPatch.contactPhone ?? '';
+    }
+    if ('description' in cleanPatch) {
+      cleanPatch.description = cleanPatch.description ?? '';
+    }
+    if ('schedule' in cleanPatch) {
+      cleanPatch.schedule = cleanPatch.schedule ?? '';
+    }
     if (Array.isArray(cleanPatch.serviceCategories) && cleanPatch.serviceCategories.length > 0) {
       cleanPatch.serviceCategory = cleanPatch.serviceCategories[0];
     } else if (cleanPatch.serviceCategory && !cleanPatch.serviceCategories) {
@@ -1154,16 +1208,21 @@ class SynkStore {
     }
 
     if (isFirebaseConfigured && db) {
-      await updateDoc(doc(db, FIRESTORE_COLLECTIONS.COURIERS_PUBLIC, courierId), {
-        ...cleanPatch,
-        updatedAt: serverTimestamp(),
-      });
+      await updateDoc(
+        doc(db, FIRESTORE_COLLECTIONS.COURIERS_PUBLIC, courierId),
+        sanitizeFirestoreData({
+          ...cleanPatch,
+          updatedAt: serverTimestamp(),
+        })
+      );
       return;
     }
 
     const couriers = readJSON<CourierPublicProfile[]>(STORAGE_KEYS.LOCAL_COURIERS, []);
     const updated = couriers.map((c) =>
-      c.id === courierId ? { ...c, ...cleanPatch, updatedAt: new Date().toISOString() } : c
+      c.id === courierId
+        ? { ...c, ...(cleanPatch as Partial<CourierPublicProfile>), updatedAt: new Date().toISOString() }
+        : c
     );
     writeJSON(STORAGE_KEYS.LOCAL_COURIERS, updated);
     if (cleanPatch.publicName || cleanPatch.city) {
@@ -1171,8 +1230,8 @@ class SynkStore {
       if (active) {
         writeJSON(STORAGE_KEYS.LOCAL_SESSION, {
           ...active,
-          displayName: cleanPatch.publicName || active.displayName,
-          city: cleanPatch.city || active.city,
+          displayName: (cleanPatch.publicName as string) || active.displayName,
+          city: (cleanPatch.city as CityName) || active.city,
         });
       }
     }
@@ -1196,11 +1255,14 @@ class SynkStore {
     const isAvailable = nextStatus === 'available';
 
     if (isFirebaseConfigured && db) {
-      await updateDoc(doc(db, FIRESTORE_COLLECTIONS.COURIERS_PUBLIC, courierId), {
-        availabilityStatus: nextStatus,
-        isAvailable,
-        updatedAt: serverTimestamp(),
-      });
+      await updateDoc(
+        doc(db, FIRESTORE_COLLECTIONS.COURIERS_PUBLIC, courierId),
+        sanitizeFirestoreData({
+          availabilityStatus: nextStatus,
+          isAvailable,
+          updatedAt: serverTimestamp(),
+        })
+      );
       return;
     }
 
@@ -1230,10 +1292,10 @@ class SynkStore {
       courierId,
       title: tariff.title.trim(),
       mode: tariff.mode,
-      priceArs: tariff.mode === 'negotiable' ? null : tariff.priceArs,
-      unitLabel: tariff.unitLabel?.trim() || undefined,
-      zoneName: tariff.zoneName?.trim() || undefined,
-      notes: tariff.notes?.trim() || undefined,
+      priceArs: tariff.mode === 'negotiable' ? null : (tariff.priceArs ?? null),
+      unitLabel: tariff.unitLabel?.trim() || '',
+      zoneName: tariff.zoneName?.trim() || '',
+      notes: tariff.notes?.trim() || '',
     };
 
     if (isFirebaseConfigured && db) {
@@ -1245,17 +1307,20 @@ class SynkStore {
           FIRESTORE_COLLECTIONS.TARIFFS_SUBCOLLECTION,
           tariffId
         ),
-        cleanTariff
+        sanitizeFirestoreData(cleanTariff as unknown as Record<string, unknown>)
       );
       const courier = this.state.couriers.find((c) => c.id === courierId);
       const nextTariffs = [
         ...(courier?.tariffs.filter((t) => t.id !== tariffId) || []),
         cleanTariff,
       ];
-      await updateDoc(doc(db, FIRESTORE_COLLECTIONS.COURIERS_PUBLIC, courierId), {
-        startingPriceArs: computeStartingPrice(nextTariffs),
-        updatedAt: serverTimestamp(),
-      });
+      await updateDoc(
+        doc(db, FIRESTORE_COLLECTIONS.COURIERS_PUBLIC, courierId),
+        sanitizeFirestoreData({
+          startingPriceArs: computeStartingPrice(nextTariffs) ?? null,
+          updatedAt: serverTimestamp(),
+        })
+      );
       return;
     }
 
@@ -1292,10 +1357,13 @@ class SynkStore {
       );
       const courier = this.state.couriers.find((c) => c.id === courierId);
       const nextTariffs = (courier?.tariffs || []).filter((t) => t.id !== tariffId);
-      await updateDoc(doc(db, FIRESTORE_COLLECTIONS.COURIERS_PUBLIC, courierId), {
-        startingPriceArs: computeStartingPrice(nextTariffs),
-        updatedAt: serverTimestamp(),
-      });
+      await updateDoc(
+        doc(db, FIRESTORE_COLLECTIONS.COURIERS_PUBLIC, courierId),
+        sanitizeFirestoreData({
+          startingPriceArs: computeStartingPrice(nextTariffs) ?? null,
+          updatedAt: serverTimestamp(),
+        })
+      );
       return;
     }
 
@@ -1327,10 +1395,13 @@ class SynkStore {
     }
 
     if (isFirebaseConfigured && db) {
-      await updateDoc(doc(db, FIRESTORE_COLLECTIONS.MERCHANTS, merchantId), {
-        ...patch,
-        updatedAt: serverTimestamp(),
-      });
+      await updateDoc(
+        doc(db, FIRESTORE_COLLECTIONS.MERCHANTS, merchantId),
+        sanitizeFirestoreData({
+          ...patch,
+          updatedAt: serverTimestamp(),
+        })
+      );
       return;
     }
 
@@ -1385,10 +1456,13 @@ class SynkStore {
     };
 
     if (isFirebaseConfigured && db) {
-      await setDoc(doc(db, FIRESTORE_COLLECTIONS.JOB_OPPORTUNITIES, jobId), {
-        ...record,
-        createdAt: serverTimestamp(),
-      });
+      await setDoc(
+        doc(db, FIRESTORE_COLLECTIONS.JOB_OPPORTUNITIES, jobId),
+        sanitizeFirestoreData({
+          ...record,
+          createdAt: serverTimestamp(),
+        })
+      );
       return;
     }
 
@@ -1482,12 +1556,12 @@ class SynkStore {
       id: convId,
       participantIds: [session.uid, courier.id],
       clientId: session.uid,
-      clientName: session.displayName,
+      clientName: session.displayName || '@invitado',
       clientRole: session.role === 'merchant' ? 'merchant' : 'client',
       courierId: courier.id,
-      courierName: courier.publicName,
-      courierCategory: courier.serviceCategory,
-      courierPhotoUrl: courier.photoUrl,
+      courierName: courier.publicName || 'Prestador',
+      courierCategory: courier.serviceCategory || 'motomandado',
+      courierPhotoUrl: courier.photoUrl || null,
       lastMessage: initialMessage || 'Conversación iniciada',
       lastMessageAt: now,
       createdAt: now,
@@ -1495,12 +1569,16 @@ class SynkStore {
     };
 
     if (isFirebaseConfigured && db) {
-      await setDoc(doc(db, FIRESTORE_COLLECTIONS.CONVERSATIONS, convId), {
-        ...conv,
-        lastMessageAt: serverTimestamp(),
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
+      await setDoc(
+        doc(db, FIRESTORE_COLLECTIONS.CONVERSATIONS, convId),
+        sanitizeFirestoreData({
+          ...conv,
+          courierPhotoUrl: courier.photoUrl || null,
+          lastMessageAt: serverTimestamp(),
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        })
+      );
       if (initialMessage) {
         await this.sendMessage(convId, initialMessage);
       }
@@ -1535,11 +1613,11 @@ class SynkStore {
       id: msgId,
       conversationId,
       senderId: session.uid,
-      senderName: session.displayName,
+      senderName: session.displayName || '@invitado',
       senderRole: session.role,
       text: clean,
       messageType,
-      contractId,
+      contractId: contractId || null,
       createdAt: now,
     };
 
@@ -1553,13 +1631,16 @@ class SynkStore {
           FIRESTORE_COLLECTIONS.MESSAGES_SUBCOLLECTION,
           msgId
         ),
-        { ...msg, createdAt: serverTimestamp() }
+        sanitizeFirestoreData({ ...msg, contractId: contractId || null, createdAt: serverTimestamp() })
       );
-      batch.update(doc(db, FIRESTORE_COLLECTIONS.CONVERSATIONS, conversationId), {
-        lastMessage: clean,
-        lastMessageAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
+      batch.update(
+        doc(db, FIRESTORE_COLLECTIONS.CONVERSATIONS, conversationId),
+        sanitizeFirestoreData({
+          lastMessage: clean,
+          lastMessageAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        })
+      );
       await batch.commit();
       return;
     }
@@ -1607,16 +1688,17 @@ class SynkStore {
       id: contractId,
       conversationId: conv.id,
       clientId: conv.clientId,
-      clientName: conv.clientName,
-      clientRole: conv.clientRole,
+      clientName: conv.clientName || '@invitado',
+      clientRole: conv.clientRole || 'client',
       courierId: courier.id,
-      courierName: courier.publicName,
-      serviceCategory: courier.serviceCategory,
+      courierName: courier.publicName || 'Prestador',
+      serviceCategory: courier.serviceCategory || 'motomandado',
       description: input.description.trim(),
-      agreedPriceArs: input.agreedPriceArs,
+      agreedPriceArs: input.agreedPriceArs ?? null,
       modality: input.modality,
       status: 'proposed',
       rated: false,
+      ratingValue: null,
       createdAt: now,
       acceptedAt: null,
       completedAt: null,
@@ -1625,11 +1707,14 @@ class SynkStore {
     };
 
     if (isFirebaseConfigured && db) {
-      await setDoc(doc(db, FIRESTORE_COLLECTIONS.CONTRACTS, contractId), {
-        ...contract,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
+      await setDoc(
+        doc(db, FIRESTORE_COLLECTIONS.CONTRACTS, contractId),
+        sanitizeFirestoreData({
+          ...contract,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        })
+      );
     } else {
       const contracts = readJSON<Contract[]>(STORAGE_KEYS.LOCAL_CONTRACTS, []);
       contracts.unshift(contract);
@@ -1908,9 +1993,9 @@ class SynkStore {
       contractId,
       courierId: courier.id,
       clientId: this.state.session.uid,
-      clientName: this.state.session.displayName,
+      clientName: this.state.session.displayName || '@invitado',
       score: cleanScore,
-      comment: comment.trim(),
+      comment: comment.trim() || '',
       createdAt: now,
     };
 
@@ -1925,25 +2010,34 @@ class SynkStore {
 
     if (isFirebaseConfigured && db) {
       const batch = writeBatch(db);
-      batch.set(doc(db, FIRESTORE_COLLECTIONS.RATINGS, contractId), {
-        ...record,
-        createdAt: serverTimestamp(),
-      });
-      batch.update(doc(db, FIRESTORE_COLLECTIONS.CONTRACTS, contractId), {
-        rated: true,
-        ratingValue: cleanScore,
-        updatedAt: serverTimestamp(),
-      });
+      batch.set(
+        doc(db, FIRESTORE_COLLECTIONS.RATINGS, contractId),
+        sanitizeFirestoreData({
+          ...record,
+          createdAt: serverTimestamp(),
+        })
+      );
+      batch.update(
+        doc(db, FIRESTORE_COLLECTIONS.CONTRACTS, contractId),
+        sanitizeFirestoreData({
+          rated: true,
+          ratingValue: cleanScore,
+          updatedAt: serverTimestamp(),
+        })
+      );
       await batch.commit();
 
       // Best-effort sync of aggregate fields on couriers_public (client state also enriches from ratings)
       try {
-        await updateDoc(doc(db, FIRESTORE_COLLECTIONS.COURIERS_PUBLIC, courier.id), {
-          ratingAverage: nextAvg,
-          ratingCount: nextCount,
-          points: prevPoints + bonusPts,
-          updatedAt: serverTimestamp(),
-        });
+        await updateDoc(
+          doc(db, FIRESTORE_COLLECTIONS.COURIERS_PUBLIC, courier.id),
+          sanitizeFirestoreData({
+            ratingAverage: nextAvg,
+            ratingCount: nextCount,
+            points: prevPoints + bonusPts,
+            updatedAt: serverTimestamp(),
+          })
+        );
       } catch {
         // Ignore if Firestore rules restrict couriers_public writes to owner only
       }

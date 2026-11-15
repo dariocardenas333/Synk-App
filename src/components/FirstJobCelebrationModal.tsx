@@ -17,7 +17,7 @@ export const FirstJobCelebrationModal: React.FC<FirstJobCelebrationModalProps> =
       aria-modal="true"
       aria-labelledby="first-job-title"
     >
-      <div className="w-full max-w-[380px] overflow-hidden rounded-3xl bg-white shadow-2xl">
+      <div className="w-full max-w-[380px] overflow-hidden rounded-3xl bg-white shadow-2xl dark:border dark:border-[#1E4452] dark:bg-[#0D252E]">
         {/* Festive Top Header */}
         <div className="relative bg-gradient-to-br from-[#063642] to-[#008B8B] px-6 pb-8 pt-8 text-center text-white">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-[#F5A623] text-[#063642] shadow-lg">
@@ -37,18 +37,18 @@ export const FirstJobCelebrationModal: React.FC<FirstJobCelebrationModalProps> =
 
         {/* Body */}
         <div className="space-y-4 p-6 text-center">
-          <p className="text-sm leading-relaxed text-slate-600">
+          <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-300">
             Completaste tu primer servicio confirmado. Ya sumaste tus primeros puntos en el
             Ranking de prestadores de la ciudad.
           </p>
 
-          <div className="flex items-center justify-center gap-3 rounded-2xl border border-[#F5A623]/40 bg-[#F5A623]/10 p-3.5">
+          <div className="flex items-center justify-center gap-3 rounded-2xl border border-[#F5A623]/40 bg-[#F5A623]/10 p-3.5 dark:bg-[#F5A623]/15">
             <Award className="h-6 w-6 text-[#F5A623]" />
             <div className="text-left">
-              <p className="font-display text-sm font-extrabold text-[#063642]">
+              <p className="font-display text-sm font-extrabold text-[#063642] dark:text-white">
                 +10 puntos sumados
               </p>
-              <p className="text-xs text-slate-600">
+              <p className="text-xs text-slate-600 dark:text-slate-300">
                 Cada trabajo completado suma +10 pts
               </p>
             </div>
@@ -67,7 +67,7 @@ export const FirstJobCelebrationModal: React.FC<FirstJobCelebrationModalProps> =
             <button
               type="button"
               onClick={onClose}
-              className="flex h-11 w-full items-center justify-center rounded-xl border border-[#E2E8F0] bg-white text-xs font-bold text-slate-600 hover:bg-[#F8FAFA]"
+              className="flex h-11 w-full items-center justify-center rounded-xl border border-[#E2E8F0] bg-white text-xs font-bold text-slate-600 hover:bg-[#F8FAFA] dark:border-[#1E4452] dark:bg-[#13323D] dark:text-slate-200 dark:hover:bg-[#1A4352]"
             >
               Seguir trabajando
             </button>

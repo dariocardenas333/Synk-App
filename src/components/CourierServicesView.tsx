@@ -195,24 +195,24 @@ export const CourierServicesView: React.FC<CourierServicesViewProps> = ({
   };
 
   return (
-    <div className="bg-[#F8FAFA] pb-24">
-      <div className="border-b border-[#E2E8F0] bg-white px-4 pb-3 pt-4">
-        <h1 className="font-display text-lg font-extrabold text-[#063642]">
+    <div className="bg-[#F8FAFA] pb-24 dark:bg-[#07181E]">
+      <div className="border-b border-[#E2E8F0] bg-white px-4 pb-3 pt-4 dark:border-[#1E4452] dark:bg-[#0D252E]">
+        <h1 className="font-display text-lg font-extrabold text-[#063642] dark:text-white">
           Mis Servicios y Tarifas
         </h1>
-        <p className="mt-0.5 text-xs text-slate-500">
+        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
           Configurá tus rubros, precios de referencia e información visible para los clientes.
         </p>
       </div>
 
       <div className="space-y-6 p-4">
         {error && (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-medium text-red-700">
+          <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-medium text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200">
             {error}
           </div>
         )}
         {feedback && (
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-semibold text-emerald-700">
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-semibold text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-200">
             {feedback}
           </div>
         )}
@@ -220,10 +220,10 @@ export const CourierServicesView: React.FC<CourierServicesViewProps> = ({
         {/* Section 1: Public Profile & Multi-Category Selector */}
         <form
           onSubmit={handleSaveProfile}
-          className="space-y-4 rounded-3xl border border-[#E2E8F0] bg-white p-4 shadow-xs"
+          className="space-y-4 rounded-3xl border border-[#E2E8F0] bg-white p-4 shadow-xs dark:border-[#1E4452] dark:bg-[#0D252E]"
         >
-          <div className="flex items-center gap-3.5 border-b border-slate-100 pb-4">
-            <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-[#063642] text-white">
+          <div className="flex items-center gap-3.5 border-b border-slate-100 pb-4 dark:border-[#1E4452]">
+            <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-[#063642] text-white dark:bg-[#13323D]">
               {courier.photoUrl ? (
                 <img
                   src={courier.photoUrl}
@@ -237,9 +237,11 @@ export const CourierServicesView: React.FC<CourierServicesViewProps> = ({
               )}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-bold text-[#063642]">Foto o avatar público</p>
-              <label className="mt-1.5 inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3.5 text-xs font-bold text-[#063642] transition hover:border-[#008B8B]">
-                <Camera className="h-4 w-4 text-[#008B8B]" />
+              <p className="text-xs font-bold text-[#063642] dark:text-white">
+                Foto o avatar público
+              </p>
+              <label className="mt-1.5 inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3.5 text-xs font-bold text-[#063642] transition hover:border-[#008B8B] dark:border-[#1E4452] dark:bg-[#13323D] dark:text-slate-100 dark:hover:border-[#2DD4BF]">
+                <Camera className="h-4 w-4 text-[#008B8B] dark:text-[#2DD4BF]" />
                 <span>Cambiar foto</span>
                 <input
                   type="file"
@@ -252,7 +254,7 @@ export const CourierServicesView: React.FC<CourierServicesViewProps> = ({
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-[#063642]">
+            <label className="block text-xs font-semibold text-[#063642] dark:text-slate-200">
               Nombre o Apodo comercial
             </label>
             <input
@@ -261,33 +263,35 @@ export const CourierServicesView: React.FC<CourierServicesViewProps> = ({
               value={publicName}
               onChange={(e) => setPublicName(e.target.value)}
               placeholder="Ej: Juan Moto Trelew"
-              className="mt-1 h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3 text-sm text-[#063642] outline-none focus:border-[#008B8B] focus:bg-white"
+              className="mt-1 h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3 text-sm text-[#063642] outline-none placeholder:text-slate-400 focus:border-[#008B8B] focus:bg-white dark:border-[#1E4452] dark:bg-[#13323D] dark:text-white dark:placeholder:text-slate-500 dark:focus:border-[#2DD4BF] dark:focus:bg-[#13323D]"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-2.5">
             <div>
-              <label className="block text-xs font-semibold text-[#063642]">
+              <label className="block text-xs font-semibold text-[#063642] dark:text-slate-200">
                 Teléfono / WhatsApp
               </label>
               <div className="relative mt-1">
-                <Phone className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Phone className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
                 <input
                   type="tel"
                   value={contactPhone}
                   onChange={(e) => setContactPhone(e.target.value)}
                   placeholder="280 4..."
-                  className="h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] pl-9 pr-3 text-sm text-[#063642] outline-none focus:border-[#008B8B] focus:bg-white"
+                  className="h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] pl-9 pr-3 text-sm text-[#063642] outline-none placeholder:text-slate-400 focus:border-[#008B8B] focus:bg-white dark:border-[#1E4452] dark:bg-[#13323D] dark:text-white dark:placeholder:text-slate-500 dark:focus:border-[#2DD4BF] dark:focus:bg-[#13323D]"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-[#063642]">Ciudad</label>
+              <label className="block text-xs font-semibold text-[#063642] dark:text-slate-200">
+                Ciudad
+              </label>
               <select
                 value={city}
                 onChange={(e) => setCity(e.target.value as CityName)}
-                className="mt-1 h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-2.5 text-sm text-[#063642] outline-none focus:border-[#008B8B]"
+                className="mt-1 h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-2.5 text-sm text-[#063642] outline-none focus:border-[#008B8B] dark:border-[#1E4452] dark:bg-[#13323D] dark:text-white dark:focus:border-[#2DD4BF]"
               >
                 {CITIES.map((c) => (
                   <option key={c} value={c}>
@@ -301,15 +305,17 @@ export const CourierServicesView: React.FC<CourierServicesViewProps> = ({
           {/* Multi-category selector (14 Rubros grouped) */}
           <div>
             <div className="flex items-center justify-between">
-              <label className="block text-xs font-semibold text-[#063642]">
+              <label className="block text-xs font-semibold text-[#063642] dark:text-slate-200">
                 Rubros en los que trabajás ({selectedCategories.length}/14)
               </label>
-              <span className="text-[11px] font-medium text-[#008B8B]">Selección múltiple</span>
+              <span className="text-[11px] font-medium text-[#008B8B] dark:text-[#2DD4BF]">
+                Selección múltiple
+              </span>
             </div>
             <div className="mt-2.5 space-y-3">
               {CATEGORY_GROUPS.map((group) => (
                 <div key={group.title}>
-                  <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                  <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
                     {group.title}
                   </p>
                   <div className="grid grid-cols-2 gap-2">
@@ -323,15 +329,15 @@ export const CourierServicesView: React.FC<CourierServicesViewProps> = ({
                           aria-pressed={active}
                           className={`flex min-h-11 items-center gap-2 rounded-xl border px-2.5 py-2 text-left text-xs font-bold transition ${
                             active
-                              ? 'border-[#008B8B] bg-[#008B8B]/10 text-[#063642]'
-                              : 'border-[#E2E8F0] bg-[#F8FAFA] text-slate-600'
+                              ? 'border-[#008B8B] bg-[#008B8B]/10 text-[#063642] dark:border-[#2DD4BF] dark:bg-[#008B8B]/20 dark:text-white'
+                              : 'border-[#E2E8F0] bg-[#F8FAFA] text-slate-600 dark:border-[#1E4452] dark:bg-[#13323D] dark:text-slate-300'
                           }`}
                         >
                           <span
                             className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
                               active
                                 ? 'border-[#008B8B] bg-[#008B8B] text-white'
-                                : 'border-slate-300 bg-white'
+                                : 'border-slate-300 bg-white dark:border-slate-500 dark:bg-[#0D252E]'
                             }`}
                           >
                             {active && <Check className="h-3 w-3" />}
@@ -347,7 +353,7 @@ export const CourierServicesView: React.FC<CourierServicesViewProps> = ({
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-[#063642]">
+            <label className="block text-xs font-semibold text-[#063642] dark:text-slate-200">
               Vehículo o equipamiento
             </label>
             <input
@@ -356,12 +362,12 @@ export const CourierServicesView: React.FC<CourierServicesViewProps> = ({
               value={vehicle}
               onChange={(e) => setVehicle(e.target.value)}
               placeholder="Ej: Moto 110cc / Kangoo / Herramental propio"
-              className="mt-1 h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3 text-sm text-[#063642] outline-none focus:border-[#008B8B] focus:bg-white"
+              className="mt-1 h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3 text-sm text-[#063642] outline-none placeholder:text-slate-400 focus:border-[#008B8B] focus:bg-white dark:border-[#1E4452] dark:bg-[#13323D] dark:text-white dark:placeholder:text-slate-500 dark:focus:border-[#2DD4BF] dark:focus:bg-[#13323D]"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-[#063642]">
+            <label className="block text-xs font-semibold text-[#063642] dark:text-slate-200">
               Horario habitual de trabajo
             </label>
             <input
@@ -369,13 +375,13 @@ export const CourierServicesView: React.FC<CourierServicesViewProps> = ({
               value={schedule}
               onChange={(e) => setSchedule(e.target.value)}
               placeholder="Ej: Lun a Sáb de 08:00 a 22:00"
-              className="mt-1 h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3 text-sm text-[#063642] outline-none focus:border-[#008B8B] focus:bg-white"
+              className="mt-1 h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3 text-sm text-[#063642] outline-none placeholder:text-slate-400 focus:border-[#008B8B] focus:bg-white dark:border-[#1E4452] dark:bg-[#13323D] dark:text-white dark:placeholder:text-slate-500 dark:focus:border-[#2DD4BF] dark:focus:bg-[#13323D]"
             />
           </div>
 
           <div className="grid grid-cols-1 gap-2.5">
             <div>
-              <label className="block text-xs font-semibold text-[#063642]">
+              <label className="block text-xs font-semibold text-[#063642] dark:text-slate-200">
                 Zona principal de trabajo
               </label>
               <input
@@ -384,12 +390,12 @@ export const CourierServicesView: React.FC<CourierServicesViewProps> = ({
                 value={workZone}
                 onChange={(e) => setWorkZone(e.target.value)}
                 placeholder="Ej: Centro y alrededores"
-                className="mt-1 h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3 text-sm text-[#063642] outline-none focus:border-[#008B8B] focus:bg-white"
+                className="mt-1 h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3 text-sm text-[#063642] outline-none placeholder:text-slate-400 focus:border-[#008B8B] focus:bg-white dark:border-[#1E4452] dark:bg-[#13323D] dark:text-white dark:placeholder:text-slate-500 dark:focus:border-[#2DD4BF] dark:focus:bg-[#13323D]"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-[#063642]">
+              <label className="block text-xs font-semibold text-[#063642] dark:text-slate-200">
                 Barrios / zonas de cobertura (separados por coma)
               </label>
               <input
@@ -397,13 +403,13 @@ export const CourierServicesView: React.FC<CourierServicesViewProps> = ({
                 value={coverageText}
                 onChange={(e) => setCoverageText(e.target.value)}
                 placeholder="Centro, Pueblo de Luis, Corradi, Villa Italia"
-                className="mt-1 h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3 text-sm text-[#063642] outline-none focus:border-[#008B8B] focus:bg-white"
+                className="mt-1 h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3 text-sm text-[#063642] outline-none placeholder:text-slate-400 focus:border-[#008B8B] focus:bg-white dark:border-[#1E4452] dark:bg-[#13323D] dark:text-white dark:placeholder:text-slate-500 dark:focus:border-[#2DD4BF] dark:focus:bg-[#13323D]"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-[#063642]">
+            <label className="block text-xs font-semibold text-[#063642] dark:text-slate-200">
               Servicios adicionales (separados por coma)
             </label>
             <input
@@ -411,12 +417,12 @@ export const CourierServicesView: React.FC<CourierServicesViewProps> = ({
               value={extraText}
               onChange={(e) => setExtraText(e.target.value)}
               placeholder="Cobro en destino, Guardia nocturna, Presupuesto sin cargo"
-              className="mt-1 h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3 text-sm text-[#063642] outline-none focus:border-[#008B8B] focus:bg-white"
+              className="mt-1 h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3 text-sm text-[#063642] outline-none placeholder:text-slate-400 focus:border-[#008B8B] focus:bg-white dark:border-[#1E4452] dark:bg-[#13323D] dark:text-white dark:placeholder:text-slate-500 dark:focus:border-[#2DD4BF] dark:focus:bg-[#13323D]"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-[#063642]">
+            <label className="block text-xs font-semibold text-[#063642] dark:text-slate-200">
               Breve descripción de tu experiencia
             </label>
             <textarea
@@ -424,14 +430,14 @@ export const CourierServicesView: React.FC<CourierServicesViewProps> = ({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Contá tu experiencia, puntualidad y qué trabajos realizás..."
-              className="mt-1 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] p-3 text-sm text-[#063642] outline-none focus:border-[#008B8B] focus:bg-white"
+              className="mt-1 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] p-3 text-sm text-[#063642] outline-none placeholder:text-slate-400 focus:border-[#008B8B] focus:bg-white dark:border-[#1E4452] dark:bg-[#13323D] dark:text-white dark:placeholder:text-slate-500 dark:focus:border-[#2DD4BF] dark:focus:bg-[#13323D]"
             />
           </div>
 
           <button
             type="submit"
             disabled={savingProfile}
-            className="h-12 w-full rounded-xl bg-[#063642] text-sm font-bold text-white transition active:scale-[0.98] disabled:opacity-60"
+            className="h-12 w-full rounded-xl bg-[#063642] text-sm font-bold text-white transition active:scale-[0.98] disabled:opacity-60 dark:bg-[#008B8B] dark:hover:bg-[#007676]"
           >
             {savingProfile ? 'Guardando cambios...' : 'Guardar perfil público'}
           </button>
@@ -440,25 +446,25 @@ export const CourierServicesView: React.FC<CourierServicesViewProps> = ({
         {/* Section 2: Custom Tariffs Manager */}
         <section className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="flex items-center gap-2 font-display text-base font-extrabold text-[#063642]">
-              <Tags className="h-4 w-4 text-[#008B8B]" />
+            <h2 className="flex items-center gap-2 font-display text-base font-extrabold text-[#063642] dark:text-white">
+              <Tags className="h-4 w-4 text-[#008B8B] dark:text-[#2DD4BF]" />
               <span>Tarifas personalizadas ({courier.tariffs.length})</span>
             </h2>
           </div>
 
           <form
             onSubmit={handleSaveTariff}
-            className="space-y-3 rounded-3xl border border-[#E2E8F0] bg-white p-4 shadow-xs"
+            className="space-y-3 rounded-3xl border border-[#E2E8F0] bg-white p-4 shadow-xs dark:border-[#1E4452] dark:bg-[#0D252E]"
           >
             <div className="flex items-center justify-between">
-              <p className="font-display text-sm font-bold text-[#063642]">
+              <p className="font-display text-sm font-bold text-[#063642] dark:text-white">
                 {editingTariffId ? 'Editar tarifa' : 'Agregar precio de referencia'}
               </p>
               {editingTariffId && (
                 <button
                   type="button"
                   onClick={resetTariffForm}
-                  className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-[#063642]"
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-[#063642] dark:text-slate-400 dark:hover:text-white"
                 >
                   <X className="h-3.5 w-3.5" />
                   <span>Cancelar</span>
@@ -467,7 +473,7 @@ export const CourierServicesView: React.FC<CourierServicesViewProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-[#063642]">
+              <label className="block text-xs font-semibold text-[#063642] dark:text-slate-200">
                 Descripción del servicio o tarifa
               </label>
               <input
@@ -476,17 +482,19 @@ export const CourierServicesView: React.FC<CourierServicesViewProps> = ({
                 value={tTitle}
                 onChange={(e) => setTTitle(e.target.value)}
                 placeholder="Ej: Envío dentro del radio céntrico / Visita técnica"
-                className="mt-1 h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3 text-sm text-[#063642] outline-none focus:border-[#008B8B] focus:bg-white"
+                className="mt-1 h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3 text-sm text-[#063642] outline-none placeholder:text-slate-400 focus:border-[#008B8B] focus:bg-white dark:border-[#1E4452] dark:bg-[#13323D] dark:text-white dark:placeholder:text-slate-500 dark:focus:border-[#2DD4BF] dark:focus:bg-[#13323D]"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-2.5">
               <div>
-                <label className="block text-xs font-semibold text-[#063642]">Modalidad</label>
+                <label className="block text-xs font-semibold text-[#063642] dark:text-slate-200">
+                  Modalidad
+                </label>
                 <select
                   value={tMode}
                   onChange={(e) => setTMode(e.target.value as TariffMode)}
-                  className="mt-1 h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-2.5 text-sm text-[#063642] outline-none focus:border-[#008B8B]"
+                  className="mt-1 h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-2.5 text-sm text-[#063642] outline-none focus:border-[#008B8B] dark:border-[#1E4452] dark:bg-[#13323D] dark:text-white dark:focus:border-[#2DD4BF]"
                 >
                   {Object.entries(TARIFF_MODE_LABELS).map(([k, label]) => (
                     <option key={k} value={k}>
@@ -498,7 +506,7 @@ export const CourierServicesView: React.FC<CourierServicesViewProps> = ({
 
               {tMode !== 'negotiable' && (
                 <div>
-                  <label className="block text-xs font-semibold text-[#063642]">
+                  <label className="block text-xs font-semibold text-[#063642] dark:text-slate-200">
                     Precio (ARS)
                   </label>
                   <input
@@ -509,7 +517,7 @@ export const CourierServicesView: React.FC<CourierServicesViewProps> = ({
                     value={tPrice}
                     onChange={(e) => setTPrice(e.target.value)}
                     placeholder="2500"
-                    className="mt-1 h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3 text-sm text-[#063642] outline-none focus:border-[#008B8B] focus:bg-white tabular-nums"
+                    className="mt-1 h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3 text-sm text-[#063642] outline-none placeholder:text-slate-400 focus:border-[#008B8B] focus:bg-white tabular-nums dark:border-[#1E4452] dark:bg-[#13323D] dark:text-white dark:placeholder:text-slate-500 dark:focus:border-[#2DD4BF] dark:focus:bg-[#13323D]"
                   />
                 </div>
               )}
@@ -517,7 +525,7 @@ export const CourierServicesView: React.FC<CourierServicesViewProps> = ({
 
             {tMode === 'zone' && (
               <div>
-                <label className="block text-xs font-semibold text-[#063642]">
+                <label className="block text-xs font-semibold text-[#063642] dark:text-slate-200">
                   Zona / barrio específico
                 </label>
                 <input
@@ -525,26 +533,28 @@ export const CourierServicesView: React.FC<CourierServicesViewProps> = ({
                   value={tZone}
                   onChange={(e) => setTZone(e.target.value)}
                   placeholder="Ej: Radio céntrico / Corradi"
-                  className="mt-1 h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3 text-sm text-[#063642] outline-none focus:border-[#008B8B]"
+                  className="mt-1 h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3 text-sm text-[#063642] outline-none placeholder:text-slate-400 focus:border-[#008B8B] dark:border-[#1E4452] dark:bg-[#13323D] dark:text-white dark:placeholder:text-slate-500 dark:focus:border-[#2DD4BF]"
                 />
               </div>
             )}
 
             {tMode === 'distance' && (
               <div>
-                <label className="block text-xs font-semibold text-[#063642]">Unidad</label>
+                <label className="block text-xs font-semibold text-[#063642] dark:text-slate-200">
+                  Unidad
+                </label>
                 <input
                   type="text"
                   value={tUnit}
                   onChange={(e) => setTUnit(e.target.value)}
                   placeholder="Ej: por km recorrido / por hora"
-                  className="mt-1 h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3 text-sm text-[#063642] outline-none focus:border-[#008B8B]"
+                  className="mt-1 h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3 text-sm text-[#063642] outline-none placeholder:text-slate-400 focus:border-[#008B8B] dark:border-[#1E4452] dark:bg-[#13323D] dark:text-white dark:placeholder:text-slate-500 dark:focus:border-[#2DD4BF]"
                 />
               </div>
             )}
 
             <div>
-              <label className="block text-xs font-semibold text-[#063642]">
+              <label className="block text-xs font-semibold text-[#063642] dark:text-slate-200">
                 Aclaración (opcional)
               </label>
               <input
@@ -552,14 +562,14 @@ export const CourierServicesView: React.FC<CourierServicesViewProps> = ({
                 value={tNotes}
                 onChange={(e) => setTNotes(e.target.value)}
                 placeholder="Ej: Incluye puente y diagnóstico / Flete por hora"
-                className="mt-1 h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3 text-sm text-[#063642] outline-none focus:border-[#008B8B]"
+                className="mt-1 h-11 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3 text-sm text-[#063642] outline-none placeholder:text-slate-400 focus:border-[#008B8B] dark:border-[#1E4452] dark:bg-[#13323D] dark:text-white dark:placeholder:text-slate-500 dark:focus:border-[#2DD4BF]"
               />
             </div>
 
             <button
               type="submit"
               disabled={savingTariff}
-              className="flex h-11 w-full items-center justify-center gap-1.5 rounded-xl bg-[#008B8B] text-xs font-bold text-white transition active:scale-[0.98] disabled:opacity-60"
+              className="flex h-11 w-full items-center justify-center gap-1.5 rounded-xl bg-[#008B8B] text-xs font-bold text-white transition active:scale-[0.98] disabled:opacity-60 hover:bg-[#007676]"
             >
               <Plus className="h-4 w-4" />
               <span>
@@ -573,7 +583,7 @@ export const CourierServicesView: React.FC<CourierServicesViewProps> = ({
           </form>
 
           {courier.tariffs.length === 0 ? (
-            <div className="rounded-2xl border border-[#E2E8F0] bg-white p-5 text-center text-xs text-slate-500">
+            <div className="rounded-2xl border border-[#E2E8F0] bg-white p-5 text-center text-xs text-slate-500 dark:border-[#1E4452] dark:bg-[#0D252E] dark:text-slate-400">
               Todavía no cargaste tarifas. Agregá precios claros (ej: «Envío céntrico — $2.500»)
               para que los clientes te elijan con confianza.
             </div>
@@ -582,26 +592,28 @@ export const CourierServicesView: React.FC<CourierServicesViewProps> = ({
               {courier.tariffs.map((t) => (
                 <div
                   key={t.id}
-                  className="flex items-start justify-between gap-3 rounded-2xl border border-[#E2E8F0] bg-white p-3.5"
+                  className="flex items-start justify-between gap-3 rounded-2xl border border-[#E2E8F0] bg-white p-3.5 dark:border-[#1E4452] dark:bg-[#0D252E]"
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-bold text-[#063642]">{t.title}</p>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-sm font-bold text-[#063642] dark:text-white">{t.title}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
                       {TARIFF_MODE_LABELS[t.mode]}
                       {t.zoneName ? ` · ${t.zoneName}` : ''}
                       {t.unitLabel ? ` · ${t.unitLabel}` : ''}
                     </p>
-                    {t.notes && <p className="mt-0.5 text-xs text-slate-500">{t.notes}</p>}
+                    {t.notes && (
+                      <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{t.notes}</p>
+                    )}
                   </div>
 
                   <div className="flex shrink-0 items-center gap-1">
-                    <span className="mr-1 font-mono text-xs font-bold text-[#063642] tabular-nums">
+                    <span className="mr-1 font-mono text-xs font-bold text-[#063642] tabular-nums dark:text-[#2DD4BF]">
                       {formatARS(t.priceArs)}
                     </span>
                     <button
                       type="button"
                       onClick={() => startEditTariff(t)}
-                      className="flex h-11 w-11 items-center justify-center rounded-xl text-slate-500 hover:bg-[#F8FAFA] hover:text-[#063642]"
+                      className="flex h-11 w-11 items-center justify-center rounded-xl text-slate-500 hover:bg-[#F8FAFA] hover:text-[#063642] dark:text-slate-400 dark:hover:bg-[#13323D] dark:hover:text-white"
                       aria-label={`Editar tarifa ${t.title}`}
                     >
                       <Pencil className="h-4 w-4" />
@@ -609,7 +621,7 @@ export const CourierServicesView: React.FC<CourierServicesViewProps> = ({
                     <button
                       type="button"
                       onClick={() => onDeleteTariff(t.id)}
-                      className="flex h-11 w-11 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600"
+                      className="flex h-11 w-11 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600 dark:text-slate-500 dark:hover:bg-red-950/40 dark:hover:text-red-400"
                       aria-label={`Eliminar tarifa ${t.title}`}
                     >
                       <Trash2 className="h-4 w-4" />

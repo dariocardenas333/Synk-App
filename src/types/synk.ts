@@ -30,16 +30,16 @@ export interface TariffItem {
   title: string;
   mode: TariffMode;
   priceArs: number | null;
-  unitLabel?: string;
-  zoneName?: string;
-  notes?: string;
+  unitLabel?: string | null;
+  zoneName?: string | null;
+  notes?: string | null;
 }
 
 export interface CourierPublicProfile {
   id: string;
   publicName: string;
-  photoUrl?: string;
-  contactPhone?: string;
+  photoUrl?: string | null;
+  contactPhone?: string | null;
   serviceCategory: ServiceCategory;
   serviceCategories?: ServiceCategory[];
   vehicle: string;
@@ -103,7 +103,7 @@ export interface Conversation {
   courierId: string;
   courierName: string;
   courierCategory: ServiceCategory;
-  courierPhotoUrl?: string;
+  courierPhotoUrl?: string | null;
   lastMessage: string;
   lastMessageAt: string;
   createdAt: string;
@@ -118,7 +118,7 @@ export interface ChatMessage {
   senderRole: UserRole | 'system';
   text: string;
   messageType: 'text' | 'contract_proposal' | 'contract_status';
-  contractId?: string;
+  contractId?: string | null;
   createdAt: string;
 }
 
@@ -136,7 +136,7 @@ export interface Contract {
   modality: 'puntual' | 'recurrente';
   status: ContractStatus;
   rated: boolean;
-  ratingValue?: number;
+  ratingValue?: number | null;
   createdAt: string;
   acceptedAt?: string | null;
   completedAt?: string | null;

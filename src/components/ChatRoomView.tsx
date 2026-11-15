@@ -143,15 +143,15 @@ export const ChatRoomView: React.FC<ChatRoomViewProps> = ({
   };
 
   return (
-    <div className="flex min-h-[calc(100dvh-56px)] flex-col bg-[#F8FAFA] pb-16">
+    <div className="flex min-h-[calc(100dvh-56px)] flex-col bg-[#F8FAFA] pb-16 dark:bg-[#07181E]">
       {/* Chat Top Subheader */}
-      <div className="sticky top-14 z-20 border-b border-[#E2E8F0] bg-white px-3 py-2.5">
+      <div className="sticky top-14 z-20 border-b border-[#E2E8F0] bg-white px-3 py-2.5 dark:border-[#1E4452] dark:bg-[#0D252E]">
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
+          <div className="flex min-w-0 items-center gap-2">
             <button
               type="button"
               onClick={onBack}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[#063642] hover:bg-[#F8FAFA]"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[#063642] hover:bg-[#F8FAFA] dark:text-white dark:hover:bg-[#13323D]"
               aria-label="Volver a chats"
             >
               <ArrowLeft className="h-5 w-5" />
@@ -160,7 +160,7 @@ export const ChatRoomView: React.FC<ChatRoomViewProps> = ({
               <button
                 type="button"
                 onClick={() => !isCourierUser && onViewCourierProfile(conversation.courierId)}
-                className="truncate text-left font-display text-sm font-bold text-[#063642]"
+                className="truncate text-left font-display text-sm font-bold text-[#063642] dark:text-white"
               >
                 {counterpartName}
               </button>
@@ -179,7 +179,7 @@ export const ChatRoomView: React.FC<ChatRoomViewProps> = ({
               <button
                 type="button"
                 onClick={() => setShowProposalForm((p) => !p)}
-                className="h-9 shrink-0 rounded-lg bg-[#063642] px-3 text-xs font-bold text-white transition hover:bg-[#052a34]"
+                className="h-9 shrink-0 rounded-lg bg-[#063642] px-3 text-xs font-bold text-white transition hover:bg-[#052a34] dark:bg-[#008B8B] dark:hover:bg-[#007676]"
               >
                 {showProposalForm ? 'Cerrar' : 'Acordar servicio'}
               </button>
@@ -188,18 +188,18 @@ export const ChatRoomView: React.FC<ChatRoomViewProps> = ({
 
         {/* Active / Pending Contract Banner */}
         {activeOrPendingContract && (
-          <div className="mt-2.5 rounded-2xl border border-[#E2E8F0] bg-[#F8FAFA] p-3">
+          <div className="mt-2.5 rounded-2xl border border-[#E2E8F0] bg-[#F8FAFA] p-3 dark:border-[#1E4452] dark:bg-[#13323D]">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <p className="text-xs font-bold text-[#063642]">
+                <p className="text-xs font-bold text-[#063642] dark:text-white">
                   {activeOrPendingContract.status === 'proposed'
                     ? 'Propuesta pendiente'
                     : 'Trabajo en curso'}
                 </p>
-                <p className="mt-0.5 text-xs text-slate-600">
+                <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-300">
                   {activeOrPendingContract.description}
                 </p>
-                <p className="mt-1 font-mono text-xs font-semibold text-[#063642] tabular-nums">
+                <p className="mt-1 font-mono text-xs font-semibold text-[#063642] tabular-nums dark:text-white">
                   {formatARS(activeOrPendingContract.agreedPriceArs)} ·{' '}
                   {activeOrPendingContract.modality === 'recurrente' ? 'Recurrente' : 'Puntual'}
                 </p>
@@ -207,8 +207,8 @@ export const ChatRoomView: React.FC<ChatRoomViewProps> = ({
               <span
                 className={`shrink-0 rounded-md px-2 py-0.5 text-[11px] font-bold ${
                   activeOrPendingContract.status === 'accepted'
-                    ? 'bg-[#EF4444]/15 text-[#B91C1C]'
-                    : 'bg-[#F5A623]/20 text-[#9A5B00]'
+                    ? 'bg-[#EF4444]/15 text-[#B91C1C] dark:bg-[#EF4444]/20 dark:text-[#F87171]'
+                    : 'bg-[#F5A623]/20 text-[#9A5B00] dark:text-[#F5A623]'
                 }`}
               >
                 {activeOrPendingContract.status === 'accepted' ? 'En curso' : 'Propuesto'}
@@ -247,9 +247,9 @@ export const ChatRoomView: React.FC<ChatRoomViewProps> = ({
                 onClick={() =>
                   runContractAction(() => onCancelContract(activeOrPendingContract.id))
                 }
-                className="flex h-10 items-center justify-center gap-1 rounded-xl border border-[#E2E8F0] bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                className="flex h-10 items-center justify-center gap-1 rounded-xl border border-[#E2E8F0] bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-[#1E4452] dark:bg-[#0D252E] dark:text-slate-200 dark:hover:bg-[#1A4352]"
               >
-                <XCircle className="h-4 w-4 text-slate-500" />
+                <XCircle className="h-4 w-4 text-slate-500 dark:text-slate-400" />
                 <span>Cancelar</span>
               </button>
             </div>
@@ -258,7 +258,7 @@ export const ChatRoomView: React.FC<ChatRoomViewProps> = ({
       </div>
 
       {actionError && (
-        <div className="mx-4 mt-3 rounded-xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-xs font-medium text-red-700">
+        <div className="mx-4 mt-3 rounded-xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-xs font-medium text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200">
           {actionError}
         </div>
       )}
@@ -267,13 +267,13 @@ export const ChatRoomView: React.FC<ChatRoomViewProps> = ({
       {showProposalForm && (
         <form
           onSubmit={handlePropose}
-          className="mx-4 mt-3 space-y-3 rounded-2xl border border-[#008B8B]/30 bg-white p-4 shadow-sm"
+          className="mx-4 mt-3 space-y-3 rounded-2xl border border-[#008B8B]/30 bg-white p-4 shadow-sm dark:border-[#2DD4BF]/30 dark:bg-[#0D252E]"
         >
-          <p className="font-display text-sm font-bold text-[#063642]">
+          <p className="font-display text-sm font-bold text-[#063642] dark:text-white">
             Proponer servicio a {conversation.courierName}
           </p>
           <div>
-            <label className="block text-xs font-semibold text-[#063642]">
+            <label className="block text-xs font-semibold text-[#063642] dark:text-slate-200">
               Detalle del servicio o envío
             </label>
             <textarea
@@ -282,12 +282,12 @@ export const ChatRoomView: React.FC<ChatRoomViewProps> = ({
               value={proposalDesc}
               onChange={(e) => setProposalDesc(e.target.value)}
               placeholder="Ej: Retirar sobre en Av. Fontana 240 y entregar en Barrio Pueblo de Luis."
-              className="mt-1 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] p-2.5 text-xs text-[#063642] outline-none focus:border-[#008B8B] focus:bg-white"
+              className="mt-1 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] p-2.5 text-xs text-[#063642] outline-none focus:border-[#008B8B] focus:bg-white dark:border-[#1E4452] dark:bg-[#13323D] dark:text-slate-100"
             />
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             <div>
-              <label className="block text-xs font-semibold text-[#063642]">
+              <label className="block text-xs font-semibold text-[#063642] dark:text-slate-200">
                 Precio acordado (ARS)
               </label>
               <input
@@ -297,15 +297,17 @@ export const ChatRoomView: React.FC<ChatRoomViewProps> = ({
                 value={proposalPrice}
                 onChange={(e) => setProposalPrice(e.target.value)}
                 placeholder="Opcional"
-                className="mt-1 h-10 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3 text-xs text-[#063642] outline-none focus:border-[#008B8B] focus:bg-white tabular-nums"
+                className="mt-1 h-10 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3 text-xs text-[#063642] outline-none focus:border-[#008B8B] focus:bg-white tabular-nums dark:border-[#1E4452] dark:bg-[#13323D] dark:text-slate-100"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-[#063642]">Modalidad</label>
+              <label className="block text-xs font-semibold text-[#063642] dark:text-slate-200">
+                Modalidad
+              </label>
               <select
                 value={proposalModality}
                 onChange={(e) => setProposalModality(e.target.value as 'puntual' | 'recurrente')}
-                className="mt-1 h-10 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-2.5 text-xs text-[#063642] outline-none focus:border-[#008B8B]"
+                className="mt-1 h-10 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-2.5 text-xs text-[#063642] outline-none focus:border-[#008B8B] dark:border-[#1E4452] dark:bg-[#13323D] dark:text-slate-100"
               >
                 <option value="puntual">Puntual</option>
                 <option value="recurrente">Recurrente</option>
@@ -324,7 +326,7 @@ export const ChatRoomView: React.FC<ChatRoomViewProps> = ({
       {/* Messages Feed */}
       <div className="flex-1 space-y-3 p-4">
         {messages.length === 0 && (
-          <div className="rounded-2xl border border-[#E2E8F0] bg-white p-4 text-center text-xs text-slate-500">
+          <div className="rounded-2xl border border-[#E2E8F0] bg-white p-4 text-center text-xs text-slate-500 dark:border-[#1E4452] dark:bg-[#0D252E] dark:text-slate-400">
             Escribí qué necesitás resolver, consultá el precio y coordiná los detalles acá.
           </div>
         )}
@@ -335,9 +337,11 @@ export const ChatRoomView: React.FC<ChatRoomViewProps> = ({
             return (
               <div
                 key={msg.id}
-                className="mx-auto max-w-[92%] rounded-2xl border border-[#E2E8F0] bg-white px-3.5 py-2.5 text-center shadow-2xs"
+                className="mx-auto max-w-[92%] rounded-2xl border border-[#E2E8F0] bg-white px-3.5 py-2.5 text-center shadow-2xs dark:border-[#1E4452] dark:bg-[#0D252E]"
               >
-                <p className="text-xs font-semibold text-[#063642]">{msg.text}</p>
+                <p className="text-xs font-semibold text-[#063642] dark:text-slate-100">
+                  {msg.text}
+                </p>
                 <p className="mt-1 text-[10px] text-slate-400 tabular-nums">
                   {formatDateAR(msg.createdAt)}
                 </p>
@@ -350,14 +354,14 @@ export const ChatRoomView: React.FC<ChatRoomViewProps> = ({
               <div
                 className={`max-w-[82%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
                   isMine
-                    ? 'rounded-br-sm bg-[#063642] text-white'
-                    : 'rounded-bl-sm border border-[#E2E8F0] bg-white text-[#063642]'
+                    ? 'rounded-br-sm bg-[#063642] text-white dark:bg-[#008B8B]'
+                    : 'rounded-bl-sm border border-[#E2E8F0] bg-white text-[#063642] dark:border-[#1E4452] dark:bg-[#0D252E] dark:text-slate-100'
                 }`}
               >
                 <p>{msg.text}</p>
                 <p
                   className={`mt-1 text-right text-[10px] tabular-nums ${
-                    isMine ? 'text-slate-300' : 'text-slate-400'
+                    isMine ? 'text-slate-300 dark:text-teal-100' : 'text-slate-400'
                   }`}
                 >
                   {formatTimeAR(msg.createdAt)}
@@ -371,15 +375,15 @@ export const ChatRoomView: React.FC<ChatRoomViewProps> = ({
         {unratedCompletedContract && (
           <form
             onSubmit={(e) => handleRatingSubmit(e, unratedCompletedContract.id)}
-            className="rounded-2xl border border-[#F5A623]/40 bg-white p-4 shadow-sm"
+            className="rounded-2xl border border-[#F5A623]/40 bg-white p-4 shadow-sm dark:bg-[#0D252E]"
           >
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-5 w-5 text-[#22C55E]" />
-              <h3 className="font-display text-sm font-bold text-[#063642]">
+              <h3 className="font-display text-sm font-bold text-[#063642] dark:text-white">
                 Calificá a {unratedCompletedContract.courierName}
               </h3>
             </div>
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
               Tu trabajo figura como completado. Dejá tu valoración verificada.
             </p>
 
@@ -389,14 +393,14 @@ export const ChatRoomView: React.FC<ChatRoomViewProps> = ({
                   key={star}
                   type="button"
                   onClick={() => setRatingScore(star)}
-                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#F8FAFA] transition hover:bg-[#F5A623]/15"
+                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#F8FAFA] transition hover:bg-[#F5A623]/15 dark:bg-[#13323D]"
                   aria-label={`${star} estrellas`}
                 >
                   <Star
                     className={`h-6 w-6 ${
                       star <= ratingScore
                         ? 'fill-[#F5A623] text-[#F5A623]'
-                        : 'text-slate-300'
+                        : 'text-slate-300 dark:text-slate-600'
                     }`}
                   />
                 </button>
@@ -408,7 +412,7 @@ export const ChatRoomView: React.FC<ChatRoomViewProps> = ({
               value={ratingComment}
               onChange={(e) => setRatingComment(e.target.value)}
               placeholder="Contá cómo fue la puntualidad y atención (opcional)"
-              className="mt-3 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] p-2.5 text-xs text-[#063642] outline-none focus:border-[#008B8B] focus:bg-white"
+              className="mt-3 w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] p-2.5 text-xs text-[#063642] outline-none focus:border-[#008B8B] focus:bg-white dark:border-[#1E4452] dark:bg-[#13323D] dark:text-slate-100"
             />
 
             <button
@@ -427,14 +431,14 @@ export const ChatRoomView: React.FC<ChatRoomViewProps> = ({
       {/* Composer */}
       <form
         onSubmit={handleSend}
-        className="sticky bottom-16 z-20 flex items-center gap-2 border-t border-[#E2E8F0] bg-white px-3 py-2.5"
+        className="sticky bottom-16 z-20 flex items-center gap-2 border-t border-[#E2E8F0] bg-white px-3 py-2.5 dark:border-[#1E4452] dark:bg-[#0D252E]"
       >
         <input
           type="text"
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="Escribí tu mensaje..."
-          className="h-11 flex-1 rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3.5 text-sm text-[#063642] outline-none focus:border-[#008B8B] focus:bg-white"
+          className="h-11 flex-1 rounded-xl border border-[#E2E8F0] bg-[#F8FAFA] px-3.5 text-sm text-[#063642] outline-none placeholder:text-slate-400 focus:border-[#008B8B] focus:bg-white dark:border-[#1E4452] dark:bg-[#13323D] dark:text-slate-100 dark:focus:border-[#2DD4BF]"
         />
         <button
           type="submit"
